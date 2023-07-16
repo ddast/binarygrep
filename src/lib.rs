@@ -1,6 +1,7 @@
 use std::cmp;
 use std::error::Error;
 use std::fs::File;
+use std::io;
 use std::io::Read;
 use std::u8;
 
@@ -178,6 +179,17 @@ impl Buffer {
         &mut self.buffer[begin..end]
     }
 
+    fn eof_reached(&mut self, remaining: usize) {
+        if self.state == BufferState::Uninitialised {
+            self.active_size = remaining;
+        } else if self.state == BufferState::Initialised {
+            self.active_size = self.size + remaining;
+        } else {
+            self.active_size = 0;
+        }
+        self.max_index = self.active_size as i32;
+    }
+
     fn get_absolute_index(&self, i: i32) -> usize {
         let absolute_index;
         if i >= 0 {
@@ -220,9 +232,17 @@ struct Bgrep {
 
 impl Bgrep {
     fn new(cli: Cli) -> Bgrep {
-        Bgrep {
-            cli,
+        Bgrep { cli }
+    }
+
+    fn grep(&self) -> Result<(), Box<dyn Error>> {
+        let filename = self.cli.file.to_str().unwrap_or("-");
+        if filename == "-" {
+            self.grep_stdin()?;
+        } else {
+            self.grep_file()?;
         }
+        Ok(())
     }
 
     fn grep_file(&self) -> Result<(), Box<dyn Error>> {
@@ -244,6 +264,36 @@ impl Bgrep {
             grep_ctr += buffer.active_size;
             //println!("read_ctr {read_ctr}; grep_ctr {grep_ctr}, filesize {filesize}; read_size {read_size}");
             if read_ctr >= filesize {
+                break;
+            }
+        }
+        Ok(())
+    }
+
+    fn grep_stdin(&self) -> Result<(), Box<dyn Error>> {
+        let mut f = io::stdin();
+        let mut buffer = Buffer::new(BUFFER_SIZE);
+        let pattern_bytes = decode_hex(&self.cli.pattern)?;
+        let mut grep_ctr = 0;
+        let mut eof = false;
+        loop {
+            let next_buffer = buffer.mut_buffer(usize::MAX);
+            let mut read_bytes = 0;
+            loop {
+                let n = f.read(&mut next_buffer[read_bytes..])?;
+                if n == 0 {
+                    eof = true;
+                    buffer.eof_reached(read_bytes);
+                    break;
+                }
+                read_bytes += n;
+                if read_bytes == next_buffer.len() {
+                    break;
+                }
+            }
+            self.grep_buffer(&pattern_bytes, &buffer, grep_ctr);
+            grep_ctr += buffer.active_size;
+            if eof {
                 break;
             }
         }
@@ -298,6 +348,6 @@ pub fn run() -> Result<(), Box<dyn Error>> {
     cli.before = cmp::max(cli.before, cli.context);
     cli.after = cmp::max(cli.after, cli.context);
     let bgrep = Bgrep::new(cli);
-    bgrep.grep_file()?;
+    bgrep.grep()?;
     Ok(())
 }
