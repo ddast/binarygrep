@@ -14,10 +14,11 @@ const BUFFER_SIZE: usize = 4 * 1024 * 1024;
 #[derive(Parser)]
 #[command(version)]
 struct Cli {
-    /// Hex pattern
+    /// Pattern as hexadecimal string
     pattern: String,
-    /// Path to file
-    file: std::path::PathBuf,
+    /// Search for PATTERN in each file. "-" is standard input.
+    #[arg(default_values_t = ["-".to_string()])]
+    file: Vec<String>,
     /// Print <N> bytes after the found pattern
     #[arg(short = 'A', long, default_value_t = 0, value_name = "N")]
     after: usize,
@@ -30,10 +31,10 @@ struct Cli {
     /// Print filename along matches
     #[arg(short = 'H', long, default_value_t = false)]
     with_filename: bool,
-    /// Suppress ASCII interpretation
+    /// Suppress ASCII interpretation in output
     #[arg(long, default_value_t = false)]
     no_ascii: bool,
-    /// Suppress 0-based offset of matched bytes
+    /// Suppress 0-based offset of matched bytes in output
     #[arg(long, default_value_t = false)]
     no_offset: bool,
 }
@@ -102,21 +103,22 @@ fn ascii_interpretation(buffer: &Vec<u8>) -> String {
 }
 
 struct Bgrep {
-    cli: Cli,
+    pattern_bytes: Vec<u8>,
+    file: String,
+    after: usize,
+    before: usize,
+    with_filename: bool,
+    no_ascii: bool,
+    no_offset: bool,
 }
 
 impl Bgrep {
-    fn new(cli: Cli) -> Bgrep {
-        Bgrep { cli }
-    }
-
     fn grep(&self) -> Result<(), Box<dyn Error>> {
-        let filename = self.cli.file.to_str().unwrap_or("-");
-        if filename == "-" {
+        if self.file == "-" {
             let mut f = io::stdin();
             self.grep_fd(&mut f)?;
         } else {
-            let mut f = File::open(&self.cli.file)?;
+            let mut f = File::open(&self.file)?;
             self.grep_fd(&mut f)?;
         }
         Ok(())
@@ -124,7 +126,6 @@ impl Bgrep {
 
     fn grep_fd(&self, f: &mut impl std::io::Read) -> Result<(), Box<dyn Error>> {
         let mut buffer = Buffer::new(BUFFER_SIZE);
-        let pattern_bytes = decode_hex(&self.cli.pattern)?;
         let mut grep_ctr = 0;
         let mut eof = false;
         loop {
@@ -142,7 +143,7 @@ impl Bgrep {
                     break;
                 }
             }
-            self.grep_buffer(&pattern_bytes, &buffer, grep_ctr);
+            self.grep_buffer(&buffer, grep_ctr);
             grep_ctr += buffer.active_size;
             if eof {
                 break;
@@ -151,11 +152,11 @@ impl Bgrep {
         Ok(())
     }
 
-    fn grep_buffer(&self, pattern: &Vec<u8>, buf: &Buffer, offset: usize) {
+    fn grep_buffer(&self, buf: &Buffer, offset: usize) {
         //println!("active size: {}", buf.active_size);
         for i in 0..buf.active_size {
             let mut matched = true;
-            for (j, c_pattern) in pattern.iter().enumerate() {
+            for (j, c_pattern) in self.pattern_bytes.iter().enumerate() {
                 if let Some(c_buf) = buf.at((i + j) as i32) {
                     //println!("Comparing {:02x} with {:02x}", c_buf, c_pattern);
                     if c_buf != *c_pattern {
@@ -167,8 +168,8 @@ impl Bgrep {
                 }
             }
             if matched {
-                let first = cmp::max((i - self.cli.before) as i32, buf.min_index);
-                let last = cmp::min((i + pattern.len() + self.cli.after) as i32, buf.max_index);
+                let first = cmp::max((i - self.before) as i32, buf.min_index);
+                let last = cmp::min((i + self.pattern_bytes.len() + self.after) as i32, buf.max_index);
                 if let Some(result) = buf.view(first, last) {
                     self.print_result(offset + i, &result);
                 }
@@ -178,15 +179,15 @@ impl Bgrep {
 
     fn print_result(&self, address: usize, buffer: &Vec<u8>) {
         let mut output = String::new();
-        if self.cli.with_filename {
-            output.push_str(self.cli.file.to_str().unwrap_or("(path not UTF8)"));
+        if self.with_filename {
+            output.push_str(&self.file);
             output.push(' ');
         }
-        if !self.cli.no_offset {
+        if !self.no_offset {
             output.push_str(format!("{:08x}: ", address).as_str());
         }
         output.push_str(&hex_string(buffer));
-        if !self.cli.no_ascii {
+        if !self.no_ascii {
             output.push_str("  ");
             output.push_str(&ascii_interpretation(buffer));
         }
@@ -195,10 +196,18 @@ impl Bgrep {
 }
 
 pub fn run() -> Result<(), Box<dyn Error>> {
-    let mut cli = Cli::parse();
-    cli.before = cmp::max(cli.before, cli.context);
-    cli.after = cmp::max(cli.after, cli.context);
-    let bgrep = Bgrep::new(cli);
-    bgrep.grep()?;
+    let cli = Cli::parse();
+    for file in cli.file {
+        let bgrep = Bgrep {
+            file,
+            pattern_bytes: decode_hex(&cli.pattern)?,
+            after: cmp::max(cli.after, cli.context),
+            before: cmp::max(cli.before, cli.context),
+            with_filename: cli.with_filename,
+            no_ascii: cli.no_ascii,
+            no_offset: cli.no_offset
+        };
+        bgrep.grep()?;
+    }
     Ok(())
 }
