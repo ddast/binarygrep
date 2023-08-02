@@ -1,5 +1,3 @@
-use std::cmp;
-
 #[derive(PartialEq, Eq)]
 enum BufferState {
     Uninitialised,
@@ -47,20 +45,20 @@ impl Buffer {
     /// If this function returns a buffer smaller than `max_size`, it can be called again to get
     /// the NEXT buffer.  If this function returns a buffer of size `max_size`, then further calls
     /// will only return a zero-size buffer.
-    pub fn mut_buffer(&mut self, max_size: usize) -> &mut [u8] {
+    pub fn mut_buffer(&mut self) -> &mut [u8] {
         let begin;
         let end;
         if self.state == BufferState::Uninitialised {
             self.root_index = 0;
             begin = self.size;
-            end = begin + cmp::min(2 * self.size, max_size);
+            end = begin + 2 * self.size;
             self.min_index = 0;
             self.max_index = (end - begin) as i32;
             self.state = BufferState::Initialised;
         } else if self.state == BufferState::Initialised {
             self.root_index = (self.root_index + self.size) % (3 * self.size);
             begin = (self.root_index + 2 * self.size) % (3 * self.size);
-            end = begin + cmp::min(self.size, max_size);
+            end = begin + self.size;
             self.min_index = -(self.size as i32);
             self.max_index = (self.size + end - begin) as i32;
         } else {
@@ -70,16 +68,12 @@ impl Buffer {
             self.min_index = 0;
             self.max_index = 0;
         }
-        if end - begin == max_size {
-            self.active_size = self.max_index as usize;
-        } else {
-            self.active_size = self.size;
-        }
-        //println!("self.size {}; self.root_index {}; begin {}; end {}; self.min_index {}; self.max_index {}",
-        //         self.size, self.root_index, begin, end, self.min_index, self.max_index);
+        self.active_size = self.size;
         &mut self.buffer[begin..end]
     }
 
+    /// Signal that EOF has been reached and the last chunk has `remaining`  bytes.  No further
+    /// data can be written to the buffer afterwards.
     pub fn eof_reached(&mut self, remaining: usize) {
         if self.state == BufferState::Uninitialised {
             self.active_size = remaining;

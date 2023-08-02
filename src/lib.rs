@@ -2,7 +2,6 @@ use std::cmp;
 use std::error::Error;
 use std::fs::File;
 use std::io;
-use std::io::Read;
 use std::u8;
 
 use clap::Parser;
@@ -114,46 +113,22 @@ impl Bgrep {
     fn grep(&self) -> Result<(), Box<dyn Error>> {
         let filename = self.cli.file.to_str().unwrap_or("-");
         if filename == "-" {
-            self.grep_stdin()?;
+            let mut f = io::stdin();
+            self.grep_fd(&mut f)?;
         } else {
-            self.grep_file()?;
+            let mut f = File::open(&self.cli.file)?;
+            self.grep_fd(&mut f)?;
         }
         Ok(())
     }
 
-    fn grep_file(&self) -> Result<(), Box<dyn Error>> {
-        let mut f = File::open(&self.cli.file)?;
-        let mut buffer = Buffer::new(BUFFER_SIZE);
-        let pattern_bytes = decode_hex(&self.cli.pattern)?;
-
-        let mut read_ctr = 0;
-        let mut grep_ctr = 0;
-        let filesize = f.metadata()?.len();
-
-        loop {
-            let remaining = (filesize - read_ctr) as usize;
-            let mut next_buffer = buffer.mut_buffer(remaining);
-            let read_size = next_buffer.len();
-            f.read_exact(&mut next_buffer)?;
-            self.grep_buffer(&pattern_bytes, &buffer, grep_ctr);
-            read_ctr += read_size as u64;
-            grep_ctr += buffer.active_size;
-            //println!("read_ctr {read_ctr}; grep_ctr {grep_ctr}, filesize {filesize}; read_size {read_size}");
-            if read_ctr >= filesize {
-                break;
-            }
-        }
-        Ok(())
-    }
-
-    fn grep_stdin(&self) -> Result<(), Box<dyn Error>> {
-        let mut f = io::stdin();
+    fn grep_fd(&self, f: &mut impl std::io::Read) -> Result<(), Box<dyn Error>> {
         let mut buffer = Buffer::new(BUFFER_SIZE);
         let pattern_bytes = decode_hex(&self.cli.pattern)?;
         let mut grep_ctr = 0;
         let mut eof = false;
         loop {
-            let next_buffer = buffer.mut_buffer(usize::MAX);
+            let next_buffer = buffer.mut_buffer();
             let mut read_bytes = 0;
             loop {
                 let n = f.read(&mut next_buffer[read_bytes..])?;
