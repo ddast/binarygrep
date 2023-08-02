@@ -28,9 +28,12 @@ struct Cli {
     /// Print <N> bytes before and after the found pattern
     #[arg(short = 'C', long, default_value_t = 0, value_name = "N")]
     context: usize,
-    /// Print filename along matches
-    #[arg(short = 'H', long, default_value_t = false)]
+    /// Print filename along matches (default for multiple files)
+    #[arg(short = 'H', long)]
     with_filename: bool,
+    /// Do not print filename along matches (default for single file)
+    #[arg(long)]
+    no_filename: bool,
     /// Suppress ASCII interpretation in output
     #[arg(long, default_value_t = false)]
     no_ascii: bool,
@@ -169,7 +172,10 @@ impl Bgrep {
             }
             if matched {
                 let first = cmp::max((i - self.before) as i32, buf.min_index);
-                let last = cmp::min((i + self.pattern_bytes.len() + self.after) as i32, buf.max_index);
+                let last = cmp::min(
+                    (i + self.pattern_bytes.len() + self.after) as i32,
+                    buf.max_index,
+                );
                 if let Some(result) = buf.view(first, last) {
                     self.print_result(offset + i, &result);
                 }
@@ -197,15 +203,18 @@ impl Bgrep {
 
 pub fn run() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
+    println!("{}, {}", cli.with_filename, cli.no_filename);
+    let filecount = cli.file.len();
     for file in cli.file {
         let bgrep = Bgrep {
             file,
             pattern_bytes: decode_hex(&cli.pattern)?,
             after: cmp::max(cli.after, cli.context),
             before: cmp::max(cli.before, cli.context),
-            with_filename: cli.with_filename,
+            with_filename: (filecount > 1 && !cli.no_filename)
+                || (filecount == 1 && cli.with_filename),
             no_ascii: cli.no_ascii,
-            no_offset: cli.no_offset
+            no_offset: cli.no_offset,
         };
         bgrep.grep()?;
     }
