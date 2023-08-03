@@ -2,6 +2,7 @@
 enum BufferState {
     Uninitialised,
     Initialised,
+    EndOfFile,
 }
 
 /// Buffer that stores some bytes before and after the current byte view
@@ -31,42 +32,45 @@ impl Buffer {
         }
     }
 
-    /// Returns a writeable buffer with at most `max_size` bytes
+    /// Returns a writeable buffer
     ///
     /// The intended usage is to repeatedly call this function to get a mutable buffer and fill
     /// the complete returned buffer with data.
+    ///
+    /// If the buffer cannot be filled comletely this should be signalled by calling `mut_buffer`
+    /// with the bytes written in the last operation.
     ///
     /// Internally this keeps track of three buffer regions: PREVIOUS, CURRENT and NEXT.
     ///
     /// Initially all buffers are empty.  The first call will fill CURRENT and (possibly) NEXT.
     /// All subsequent calls will drop PREVIOUS, move CURRENT TO PREVIOUS, move NEXT to CURRENT and
     /// return the NEXT buffer for filling.
-    ///
-    /// If this function returns a buffer smaller than `max_size`, it can be called again to get
-    /// the NEXT buffer.  If this function returns a buffer of size `max_size`, then further calls
-    /// will only return a zero-size buffer.
     pub fn mut_buffer(&mut self) -> &mut [u8] {
         let begin;
         let end;
-        if self.state == BufferState::Uninitialised {
-            self.root_index = 0;
-            begin = self.size;
-            end = begin + 2 * self.size;
-            self.min_index = 0;
-            self.max_index = (end - begin) as i32;
-            self.state = BufferState::Initialised;
-        } else if self.state == BufferState::Initialised {
-            self.root_index = (self.root_index + self.size) % (3 * self.size);
-            begin = (self.root_index + 2 * self.size) % (3 * self.size);
-            end = begin + self.size;
-            self.min_index = -(self.size as i32);
-            self.max_index = (self.size + end - begin) as i32;
-        } else {
-            self.root_index = 0;
-            begin = 0;
-            end = 0;
-            self.min_index = 0;
-            self.max_index = 0;
+        match self.state {
+            BufferState::Uninitialised => {
+                self.root_index = 0;
+                begin = self.size;
+                end = begin + 2 * self.size;
+                self.min_index = 0;
+                self.max_index = (end - begin) as i32;
+                self.state = BufferState::Initialised;
+            }
+            BufferState::Initialised => {
+                self.root_index = (self.root_index + self.size) % (3 * self.size);
+                begin = (self.root_index + 2 * self.size) % (3 * self.size);
+                end = begin + self.size;
+                self.min_index = -(self.size as i32);
+                self.max_index = (self.size + end - begin) as i32;
+            }
+            BufferState::EndOfFile => {
+                self.root_index = 0;
+                begin = 0;
+                end = 0;
+                self.min_index = 0;
+                self.max_index = 0;
+            }
         }
         self.active_size = self.size;
         &mut self.buffer[begin..end]
@@ -75,13 +79,12 @@ impl Buffer {
     /// Signal that EOF has been reached and the last chunk has `remaining`  bytes.  No further
     /// data can be written to the buffer afterwards.
     pub fn eof_reached(&mut self, remaining: usize) {
-        if self.state == BufferState::Uninitialised {
-            self.active_size = remaining;
-        } else if self.state == BufferState::Initialised {
-            self.active_size = self.size + remaining;
-        } else {
-            self.active_size = 0;
+        match self.state {
+            BufferState::Uninitialised => self.active_size = remaining,
+            BufferState::Initialised => self.active_size = self.size + remaining,
+            BufferState::EndOfFile => self.active_size = 0,
         }
+        self.state = BufferState::EndOfFile;
         self.max_index = self.active_size as i32;
     }
 
