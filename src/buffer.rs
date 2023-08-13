@@ -1,6 +1,7 @@
 #[derive(PartialEq, Eq)]
 enum BufferState {
     Uninitialised,
+    InitialisationPending,
     Initialised,
     EndOfFile,
 }
@@ -55,14 +56,15 @@ impl Buffer {
                 end = begin + 2 * self.size;
                 self.min_index = 0;
                 self.max_index = (end - begin) as i32;
-                self.state = BufferState::Initialised;
+                self.state = BufferState::InitialisationPending;
             }
-            BufferState::Initialised => {
+            BufferState::InitialisationPending | BufferState::Initialised => {
                 self.root_index = (self.root_index + self.size) % (3 * self.size);
                 begin = (self.root_index + 2 * self.size) % (3 * self.size);
                 end = begin + self.size;
                 self.min_index = -(self.size as i32);
                 self.max_index = (self.size + end - begin) as i32;
+                self.state = BufferState::Initialised;
             }
             BufferState::EndOfFile => {
                 self.root_index = 0;
@@ -80,7 +82,8 @@ impl Buffer {
     /// data can be written to the buffer afterwards.
     pub fn eof_reached(&mut self, remaining: usize) {
         match self.state {
-            BufferState::Uninitialised => self.active_size = remaining,
+            BufferState::Uninitialised => self.active_size = 0, // this should not happen
+            BufferState::InitialisationPending => self.active_size = remaining,
             BufferState::Initialised => self.active_size = self.size + remaining,
             BufferState::EndOfFile => self.active_size = 0,
         }
