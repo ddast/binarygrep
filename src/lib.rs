@@ -203,7 +203,6 @@ impl Bgrep {
 
 pub fn run() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
-    println!("{}, {}", cli.with_filename, cli.no_filename);
     let filecount = cli.file.len();
     for file in cli.file {
         let bgrep = Bgrep {
