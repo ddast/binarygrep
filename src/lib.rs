@@ -1,5 +1,4 @@
 use std::cmp;
-use std::error::Error;
 use std::fs::File;
 use std::io;
 use std::u8;
@@ -43,45 +42,36 @@ struct Cli {
 }
 
 #[derive(Debug)]
-struct BgrepError {
-    desc: String,
-}
-
-impl BgrepError {
-    fn new(desc: &str) -> BgrepError {
-        BgrepError {
-            desc: String::from(desc),
-        }
-    }
-}
+pub struct BgrepError(String);
 
 impl std::fmt::Display for BgrepError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.desc)
+        write!(f, "{}", self.0)
     }
 }
 
-impl Error for BgrepError {}
-
-fn decode_hex(pattern_input: &String) -> Result<Vec<u8>, Box<dyn Error>> {
+fn decode_hex(pattern_input: &String) -> Result<Vec<u8>, BgrepError> {
     if !pattern_input.is_ascii() {
-        println!("Pattern contains non-ascii characters: {}", pattern_input);
-        return Err(Box::new(BgrepError::new(
-            "Pattern contains non-ascii characters",
+        return Err(BgrepError(format!(
+            "Hex pattern contains non-ascii characters: {}",
+            pattern_input
         )));
     }
     let pattern = pattern_input.replace(" ", "");
     if pattern.len() % 2 != 0 {
-        println!(
-            "Pattern does not have even amount of characters: {}",
+        return Err(BgrepError(format!(
+            "Hex pattern does not have even amount of characters: {}",
             pattern_input
-        );
-        return Err(Box::new(BgrepError::new(
-            "Pattern does not have even amount of characters",
         )));
     }
     (0..(pattern.len() / 2))
-        .map(|i| Ok(u8::from_str_radix(&pattern[(2 * i)..(2 * i + 2)], 16)?))
+        .map(|i| {
+            Ok(
+                u8::from_str_radix(&pattern[(2 * i)..(2 * i + 2)], 16).map_err(|err| {
+                    BgrepError(format!("Invalid hex pattern '{}': {}", pattern_input, err))
+                })?,
+            )
+        })
         .collect()
 }
 
@@ -116,18 +106,19 @@ struct Bgrep {
 }
 
 impl Bgrep {
-    fn grep(&self) -> Result<(), Box<dyn Error>> {
+    fn grep(&self) -> Result<(), BgrepError> {
         if self.file == "-" {
             let mut f = io::stdin();
             self.grep_fd(&mut f)?;
         } else {
-            let mut f = File::open(&self.file)?;
+            let mut f = File::open(&self.file)
+                .map_err(|err| BgrepError(format!("Cannot open file '{}': {}", self.file, err)))?;
             self.grep_fd(&mut f)?;
         }
         Ok(())
     }
 
-    fn grep_fd(&self, f: &mut impl std::io::Read) -> Result<(), Box<dyn Error>> {
+    fn grep_fd(&self, f: &mut impl std::io::Read) -> Result<(), BgrepError> {
         let mut buffer = Buffer::new(BUFFER_SIZE);
         let mut grep_ctr = 0;
         let mut eof = false;
@@ -135,7 +126,9 @@ impl Bgrep {
             let next_buffer = buffer.mut_buffer();
             let mut read_bytes = 0;
             loop {
-                let n = f.read(&mut next_buffer[read_bytes..])?;
+                let n = f
+                    .read(&mut next_buffer[read_bytes..])
+                    .map_err(|err| BgrepError(format!("Error while reading: {}", err)))?;
                 if n == 0 {
                     eof = true;
                     buffer.eof_reached(read_bytes);
@@ -201,7 +194,7 @@ impl Bgrep {
     }
 }
 
-pub fn run() -> Result<(), Box<dyn Error>> {
+pub fn run() -> Result<(), BgrepError> {
     let cli = Cli::parse();
     let filecount = cli.file.len();
     for file in cli.file {
