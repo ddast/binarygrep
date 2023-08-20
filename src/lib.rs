@@ -4,6 +4,7 @@ use std::io;
 use std::u8;
 
 use clap::Parser;
+use colored::Colorize;
 
 mod buffer;
 use crate::buffer::Buffer;
@@ -164,33 +165,63 @@ impl Bgrep {
                 }
             }
             if matched {
-                let first = cmp::max((i - self.before) as i32, buf.min_index);
-                let last = cmp::min(
+                let res_start = i as i32;
+                let res_end = (i + self.pattern_bytes.len()) as i32;
+                let before_start = cmp::max((i - self.before) as i32, buf.min_index);
+                let after_end = cmp::min(
                     (i + self.pattern_bytes.len() + self.after) as i32,
                     buf.max_index,
                 );
-                if let Some(result) = buf.view(first, last) {
-                    self.print_result(offset + i, &result);
+                if let (Some(before), Some(result), Some(after)) = (
+                    buf.view(before_start, res_start),
+                    buf.view(res_start, res_end),
+                    buf.view(res_end, after_end),
+                ) {
+                    self.print_result(offset + i, &before, &result, &after);
                 }
             }
         }
     }
 
-    fn print_result(&self, address: usize, buffer: &Vec<u8>) {
-        let mut output = String::new();
-        if self.with_filename {
-            output.push_str(&self.file);
-            output.push(' ');
-        }
-        if !self.no_offset {
-            output.push_str(format!("{:08x}: ", address).as_str());
-        }
-        output.push_str(&encode_hex(buffer));
-        if !self.no_ascii {
-            output.push_str("  ");
-            output.push_str(&ascii_interpretation(buffer));
-        }
-        println!("{output}");
+    fn print_result(&self, address: usize, before: &Vec<u8>, result: &Vec<u8>, after: &Vec<u8>) {
+        let filename = if self.with_filename { &self.file } else { "" };
+        let offset = if self.no_offset {
+            String::new()
+        } else {
+            format!("{:08x}", address)
+        };
+        let hex_before = &encode_hex(before);
+        let hex_result = &encode_hex(result);
+        let hex_after = &encode_hex(after);
+        let ascii_before = if self.no_ascii {
+            String::new()
+        } else {
+            ascii_interpretation(before)
+        };
+        let ascii_result = if self.no_ascii {
+            String::new()
+        } else {
+            ascii_interpretation(result)
+        };
+        let ascii_after = if self.no_ascii {
+            String::new()
+        } else {
+            ascii_interpretation(after)
+        };
+        println!(
+            "{}{}{}{}{}{}{}{}{}{}{}",
+            filename.cyan(),
+            if filename.is_empty() { "" } else { " " },
+            offset.bold(),
+            if offset.is_empty() { "" } else { ": " },
+            hex_before,
+            hex_result.magenta(),
+            hex_after,
+            if self.no_ascii { "" } else { "  " },
+            ascii_before,
+            ascii_result.magenta(),
+            ascii_after
+        );
     }
 }
 
