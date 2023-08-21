@@ -1,6 +1,7 @@
 use std::cmp;
 use std::fs::File;
 use std::io;
+use std::path::Path;
 use std::u8;
 
 use clap::Parser;
@@ -112,8 +113,15 @@ impl Bgrep {
             let mut f = io::stdin();
             self.grep_fd(&mut f)?;
         } else {
-            let mut f = File::open(&self.file)
-                .map_err(|err| BgrepError(format!("Cannot open file '{}': {}", self.file, err)))?;
+            let path = Path::new(&self.file);
+            if path.is_dir() {
+                return Err(BgrepError(format!(
+                    "Error: '{}' is a directory",
+                    &self.file
+                )));
+            }
+            let mut f = File::open(path)
+                .map_err(|err| BgrepError(format!("Cannot open file '{}': {}", &self.file, err)))?;
             self.grep_fd(&mut f)?;
         }
         Ok(())
