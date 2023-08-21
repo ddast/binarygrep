@@ -1,9 +1,6 @@
-use std::error::Error;
+use binarygrep::BgrepError;
 
-fn main() -> Result<(), Box<dyn Error>> {
-    let result = binarygrep::run();
-    if let Err(e) = result {
-        println!("{}", e);
-    }
+fn main() -> Result<(), BgrepError> {
+    binarygrep::run()?;
     Ok(())
 }
