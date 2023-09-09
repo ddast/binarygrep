@@ -149,12 +149,10 @@ impl Bgrep {
     }
 
     fn grep_buffer(&self, buf: &Buffer, offset: usize) {
-        //println!("active size: {}", buf.active_size);
         for i in 0..buf.active_size {
             let mut matched = true;
             for (j, c_pattern) in self.pattern_bytes.iter().enumerate() {
                 if let Some(c_buf) = buf.at((i + j) as i32) {
-                    //println!("Comparing {:02x} with {:02x}", c_buf, c_pattern);
                     if c_buf != *c_pattern {
                         matched = false;
                         break;

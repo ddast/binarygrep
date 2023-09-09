@@ -67,7 +67,6 @@ impl Buffer {
             return None;
         }
         let actual_index = self.get_absolute_index(i);
-        //println!("Accessing offset {i} via actual index {actual_index}");
         Some(self.buffer[actual_index])
     }
 
@@ -83,7 +82,6 @@ impl Buffer {
         }
         let actual_index_first = self.get_absolute_index(first);
         let actual_index_last = self.get_absolute_index(last);
-        //println!("first {actual_index_first}; last {actual_index_last}");
         Some(self.buffer[actual_index_first..actual_index_last].to_vec())
     }
 
