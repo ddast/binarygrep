@@ -135,27 +135,13 @@ impl Bgrep {
     fn grep_fd(&self, f: &mut impl std::io::Read) -> Result<(), BgrepError> {
         let mut buffer = Buffer::new(BUFFER_SIZE);
         let mut grep_ctr = 0;
-        let mut eof = false;
         loop {
-            let next_buffer = buffer.mut_buffer();
-            let mut read_bytes = 0;
-            loop {
-                let n = f
-                    .read(&mut next_buffer[read_bytes..])
-                    .map_err(|err| BgrepError(format!("Error while reading: {}", err)))?;
-                if n == 0 {
-                    eof = true;
-                    buffer.eof_reached(read_bytes);
-                    break;
-                }
-                read_bytes += n;
-                if read_bytes == next_buffer.len() {
-                    break;
-                }
-            }
+            buffer
+                .read(f)
+                .map_err(|err| BgrepError(format!("Error while reading: {}", err)))?;
             self.grep_buffer(&buffer, grep_ctr);
             grep_ctr += buffer.active_size;
-            if eof {
+            if buffer.is_eof() {
                 break;
             }
         }
