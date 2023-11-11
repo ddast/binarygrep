@@ -1,4 +1,5 @@
-/// Adapted from Python example code at https://en.wikipedia.org/wiki/Boyer%E2%80%93Moore_string-search_algorithm
+/// Adapted from Python example code at
+/// https://en.wikipedia.org/wiki/Boyer%E2%80%93Moore_string-search_algorithm
 
 const ALPHABET_SIZE: usize = 256;
 
@@ -16,7 +17,7 @@ fn match_length(pattern: &Vec<u8>, mut idx1: usize, mut idx2: usize) -> usize {
 }
 
 fn fundamental_preprocess(pattern: &Vec<u8>) -> Vec<usize> {
-    if pattern.len() == 0 {
+    if pattern.is_empty() {
         return vec![];
     }
     if pattern.len() == 1 {
@@ -56,14 +57,14 @@ fn fundamental_preprocess(pattern: &Vec<u8>) -> Vec<usize> {
 /// Generate the bad character table from `pattern` for constant time lookup.  The table has to be
 /// interpreted as a two-dimensional table where [i + (pattern.len()+1) * j] means character i and
 /// position j.
-pub fn bad_character_table(pattern: &Vec<u8>) -> Vec<i32> {
-    if pattern.len() == 0 {
+pub fn bad_character_table(pattern: &Vec<u8>) -> Vec<Option<usize>> {
+    if pattern.is_empty() {
         return vec![];
     }
-    let mut r = vec![-1; (pattern.len() + 1) * ALPHABET_SIZE];
-    let mut alpha = vec![-1; ALPHABET_SIZE];
+    let mut r = vec![None; (pattern.len() + 1) * ALPHABET_SIZE];
+    let mut alpha = vec![None; ALPHABET_SIZE];
     for (i, c) in pattern.iter().enumerate() {
-        alpha[*c as usize] = i as i32;
+        alpha[usize::from(*c)] = Some(i);
         for (j, a) in alpha.iter().enumerate() {
             r[i + 1 + j * (pattern.len() + 1)] = *a;
         }
@@ -71,8 +72,8 @@ pub fn bad_character_table(pattern: &Vec<u8>) -> Vec<i32> {
     r
 }
 
-fn good_suffix_table(pattern: &Vec<u8>) -> Vec<i32> {
-    let mut l = vec![-1; pattern.len()];
+fn good_suffix_table(pattern: &Vec<u8>) -> Vec<Option<usize>> {
+    let mut l = vec![None; pattern.len()];
     let mut rev_pattern = pattern.clone();
     rev_pattern.reverse();
     let mut n = fundamental_preprocess(&rev_pattern);
@@ -80,16 +81,19 @@ fn good_suffix_table(pattern: &Vec<u8>) -> Vec<i32> {
     for j in 0..(pattern.len() - 1) {
         let i = pattern.len() - n[j];
         if i != pattern.len() {
-            l[i] = j as i32;
+            l[i] = Some(j);
         }
     }
     l
 }
 
-fn full_shift_table(pattern: &Vec<u8>) -> Vec<i32> {
-    let f = vec![0, pattern.len()];
+fn full_shift_table(pattern: &Vec<u8>) -> Vec<Option<usize>> {
+    let mut f = vec![Some(0); pattern.len()];
     let z = fundamental_preprocess(&pattern);
     let mut longest = 0;
-    // TODO
+    for (i, &zv) in z.iter().rev().enumerate() {
+        longest = if zv == i + 1 { std::cmp::max(zv, longest) } else {longest};
+        f[pattern.len()-i-1] = Some(longest);
+    }
     f
 }
