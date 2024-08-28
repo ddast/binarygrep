@@ -87,13 +87,53 @@ fn good_suffix_table(pattern: &Vec<u8>) -> Vec<Option<usize>> {
     l
 }
 
-fn full_shift_table(pattern: &Vec<u8>) -> Vec<Option<usize>> {
-    let mut f = vec![Some(0); pattern.len()];
+fn full_shift_table(pattern: &Vec<u8>) -> Vec<usize> {
+    let mut f = vec![0; pattern.len()];
     let z = fundamental_preprocess(&pattern);
     let mut longest = 0;
     for (i, &zv) in z.iter().rev().enumerate() {
         longest = if zv == i + 1 { std::cmp::max(zv, longest) } else {longest};
-        f[pattern.len()-i-1] = Some(longest);
+        f[pattern.len()-i-1] = longest;
     }
     f
+}
+
+fn string_search(pattern: &Vec<u8>, data: &Vec<u8>) -> Vec<Option<usize>> {
+    if pattern.is_empty() || data.is_empty() || (data.len() < pattern.len()) {
+        return vec![];
+    }
+
+    let mut matches = vec![];
+
+    let r = bad_character_table(pattern);
+    let l = good_suffix_table(pattern);
+    let f = full_shift_table(pattern);
+
+    let k = pattern.len() - 1;
+    let previous_k = None;
+    while k < data.len() {
+        let mut i = Some(pattern.len() - 1);
+        let mut h = Some(k);
+        while i.is_some() && h.is_some() && (previous_k.is_none() || h > previous_k) && pattern[i.unwrap()] == data[h.unwrap()] {
+            i = i.unwrap().checked_sub(1);
+            h = h.unwrap().checked_sub(1);
+        }
+        if i.is_none() || h == previous_k {
+            matches.push(Some(k - pattern.len() + 1));
+            k += if pattern.len() > 1 {pattern.len() - f[1]} else {1};
+        } else {
+            let char_shift = i.unwrap() - r[data[h.unwrap()] + (pattern.len()+1)*i.unwrap()];
+            if (i + 1 == pattern.len()) {
+                let suffix_shift = 1;
+            } else if (L[i + 1] == -1) {
+                let suffix_shift = pattern.len() - f[i + 1];
+            } else {
+                let suffix_shift = pattern.len() - 1 - l[i + 1];
+            }
+            let shift = std::cmp::max(char_shift, suffix_shift);
+            previous_k = if (shift >= i + 1) {k} else {previous_k};
+            k += shift;
+        }
+    }
+    matches
 }
