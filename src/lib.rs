@@ -10,6 +10,8 @@ use colored::Colorize;
 mod buffer;
 use crate::buffer::Buffer;
 
+mod search;
+
 const BUFFER_SIZE: usize = 4 * 1024 * 1024;
 
 #[derive(Parser)]

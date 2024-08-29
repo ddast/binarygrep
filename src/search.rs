@@ -1,139 +1,103 @@
-/// Adapted from Python example code at
-/// https://en.wikipedia.org/wiki/Boyer%E2%80%93Moore_string-search_algorithm
+// Boyer-Moore string search
+// Translated C implementation from
+// https://en.wikipedia.org/wiki/Boyer%E2%80%93Moore_string-search_algorithm
 
-const ALPHABET_SIZE: usize = 256;
+use crate::buffer::Buffer;
 
-fn match_length(pattern: &Vec<u8>, mut idx1: usize, mut idx2: usize) -> usize {
-    if idx1 == idx2 {
-        return pattern.len() - idx1;
-    }
-    let mut match_count = 0;
-    while idx1 < pattern.len() && idx2 < pattern.len() && pattern[idx1] == pattern[idx2] {
-        match_count += 1;
-        idx1 += 1;
-        idx2 += 1;
-    }
-    match_count
+const ALPHABET_LEN: usize = 256;
+
+struct BoyerMooreSearch {
+    delta1: Vec<isize>,
+    delta2: Vec<isize>,
+    pat: Vec<u8>
 }
 
-fn fundamental_preprocess(pattern: &Vec<u8>) -> Vec<usize> {
-    if pattern.is_empty() {
-        return vec![];
+impl BoyerMooreSearch {
+    pub fn new(pat: Vec<u8>) -> BoyerMooreSearch {
+        let mut delta1 = vec![pat.len() as isize; ALPHABET_LEN];
+        let mut delta2 = vec![0; pat.len()];
+        make_delta1(&mut delta1, &pat);
+        make_delta2(&mut delta2, &pat);
+        BoyerMooreSearch {
+            delta1,
+            delta2,
+            pat
+        }
     }
-    if pattern.len() == 1 {
-        return vec![1];
-    }
-    let mut z = vec![0, pattern.len()];
-    z[0] = pattern.len();
-    z[1] = match_length(pattern, 0, 1);
-    for i in 2..(1 + z[1]) {
-        z[i] = z[1] - 1 + 1;
-    }
-    let mut l = 0;
-    let mut r = 0;
-    for i in (2 + z[1])..pattern.len() {
-        if i <= r {
-            let k = i - l;
-            let b = z[k];
-            let a = r - i + 1;
-            if b < a {
-                z[i] = b;
-            } else {
-                z[i] = a + match_length(pattern, a, r + 1);
-                l = i;
-                r = i + z[i] - 1;
+
+    pub fn search(&self, data: &Buffer) -> usize {
+        let patlen = self.pat.len();
+
+        if patlen == 0 {
+            return 0;
+        }
+
+        let mut delta1 = vec![patlen as isize; ALPHABET_LEN];
+        let mut delta2 = vec![0; patlen];
+        make_delta1(&mut delta1, &self.pat);
+        make_delta2(&mut delta2, &self.pat);
+
+        let mut i = patlen as isize - 1;
+        while i < data.active_size as isize {
+            let mut j = patlen as isize - 1;
+            while j >= 0 {
+                if data.at(i as i32).unwrap() == self.pat[j as usize] { // TODO change i32 to isize
+                    i -= 1;
+                    j -= 1;
+                } else {
+                    break;
+                }
             }
-        } else {
-            z[i] = match_length(pattern, 0, i);
-            if z[i] > 0 {
-                l = i;
-                r = i + z[i] - 1;
+            if j < 0 {
+                return i as usize + 1;
             }
+            let shift = std::cmp::max(delta1[data.at(i as i32).unwrap() as usize], delta2[j as usize]); // TODO change i32 to isize
+            i += shift;
         }
+
+        return 0;
     }
-    z
 }
 
-/// Generate the bad character table from `pattern` for constant time lookup.  The table has to be
-/// interpreted as a two-dimensional table where [i + (pattern.len()+1) * j] means character i and
-/// position j.
-pub fn bad_character_table(pattern: &Vec<u8>) -> Vec<Option<usize>> {
-    if pattern.is_empty() {
-        return vec![];
+fn make_delta1(delta1: &mut Vec<isize>, pat: &Vec<u8>) {
+    for i in 0..pat.len() {
+        delta1[pat[i] as usize] = pat.len() as isize - 1 - i as isize;
     }
-    let mut r = vec![None; (pattern.len() + 1) * ALPHABET_SIZE];
-    let mut alpha = vec![None; ALPHABET_SIZE];
-    for (i, c) in pattern.iter().enumerate() {
-        alpha[usize::from(*c)] = Some(i);
-        for (j, a) in alpha.iter().enumerate() {
-            r[i + 1 + j * (pattern.len() + 1)] = *a;
-        }
-    }
-    r
 }
 
-fn good_suffix_table(pattern: &Vec<u8>) -> Vec<Option<usize>> {
-    let mut l = vec![None; pattern.len()];
-    let mut rev_pattern = pattern.clone();
-    rev_pattern.reverse();
-    let mut n = fundamental_preprocess(&rev_pattern);
-    n.reverse();
-    for j in 0..(pattern.len() - 1) {
-        let i = pattern.len() - n[j];
-        if i != pattern.len() {
-            l[i] = Some(j);
+fn is_prefix(word: &Vec<u8>, pos: isize) -> bool {
+    let suffixlen = word.len() as isize - pos;
+    for i in 0..suffixlen {
+        if word[i as usize] != word[pos as usize + 1] {
+            return false;
         }
     }
-    l
+    return true;
 }
 
-fn full_shift_table(pattern: &Vec<u8>) -> Vec<usize> {
-    let mut f = vec![0; pattern.len()];
-    let z = fundamental_preprocess(&pattern);
-    let mut longest = 0;
-    for (i, &zv) in z.iter().rev().enumerate() {
-        longest = if zv == i + 1 { std::cmp::max(zv, longest) } else {longest};
-        f[pattern.len()-i-1] = longest;
+fn suffix_length(word: &Vec<u8>, pos: isize) -> usize {
+    for i in 0..pos + 1 {
+        if word[(pos - i) as usize] != word[word.len() - 1 - i as usize] {
+            return i as usize;
+        }
     }
-    f
+    return pos as usize;
 }
 
-fn string_search(pattern: &Vec<u8>, data: &Vec<u8>) -> Vec<Option<usize>> {
-    if pattern.is_empty() || data.is_empty() || (data.len() < pattern.len()) {
-        return vec![];
+fn make_delta2(delta2: &mut Vec<isize>, pat: &Vec<u8>) {
+    let mut last_prefix_index = 1;
+
+    for p in (0..pat.len() as isize).rev() {
+        if is_prefix(pat, p + 1) {
+            last_prefix_index = p + 1;
+        }
+        delta2[p as usize] = last_prefix_index + (pat.len() as isize - 1 - p);
     }
 
-    let mut matches = vec![];
-
-    let r = bad_character_table(pattern);
-    let l = good_suffix_table(pattern);
-    let f = full_shift_table(pattern);
-
-    let k = pattern.len() - 1;
-    let previous_k = None;
-    while k < data.len() {
-        let mut i = Some(pattern.len() - 1);
-        let mut h = Some(k);
-        while i.is_some() && h.is_some() && (previous_k.is_none() || h > previous_k) && pattern[i.unwrap()] == data[h.unwrap()] {
-            i = i.unwrap().checked_sub(1);
-            h = h.unwrap().checked_sub(1);
-        }
-        if i.is_none() || h == previous_k {
-            matches.push(Some(k - pattern.len() + 1));
-            k += if pattern.len() > 1 {pattern.len() - f[1]} else {1};
-        } else {
-            let char_shift = i.unwrap() - r[data[h.unwrap()] + (pattern.len()+1)*i.unwrap()];
-            if (i + 1 == pattern.len()) {
-                let suffix_shift = 1;
-            } else if (L[i + 1] == -1) {
-                let suffix_shift = pattern.len() - f[i + 1];
-            } else {
-                let suffix_shift = pattern.len() - 1 - l[i + 1];
-            }
-            let shift = std::cmp::max(char_shift, suffix_shift);
-            previous_k = if (shift >= i + 1) {k} else {previous_k};
-            k += shift;
+    for p in 0..pat.len() as isize - 1 {
+        let slen = suffix_length(pat, p);
+        if pat[p as usize - slen] != pat[pat.len() - 1 - slen] {
+            delta2[pat.len() - 1 - slen] = pat.len() as isize - 1 - p + slen as isize;
         }
     }
-    matches
 }
