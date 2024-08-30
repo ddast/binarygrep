@@ -111,19 +111,22 @@ struct Bgrep {
     with_filename: bool,
     no_ascii: bool,
     no_offset: bool,
+    bmsearch: search::BoyerMooreSearch,
 }
 
 impl Bgrep {
     fn new(cli: &Cli) -> Result<Bgrep, BgrepError> {
         let filecount = cli.file.len();
+        let pattern_bytes = decode_hex(&cli.pattern)?;
         Ok(Bgrep {
-            pattern_bytes: decode_hex(&cli.pattern)?,
+            pattern_bytes: pattern_bytes.clone(),
             after: cmp::max(cli.after, cli.context),
             before: cmp::max(cli.before, cli.context),
             with_filename: (filecount > 1 && !cli.no_filename)
                 || (filecount == 1 && cli.with_filename),
             no_ascii: cli.no_ascii,
             no_offset: cli.no_offset,
+            bmsearch: search::BoyerMooreSearch::new(pattern_bytes)
         })
     }
 
@@ -147,7 +150,9 @@ impl Bgrep {
     }
 
     fn grep_fd(&self, filename: &String, f: &mut impl std::io::Read) -> Result<(), BgrepError> {
-        let mut buffer = Buffer::new(BUFFER_SIZE);
+        let buffer_size = cmp::max(BUFFER_SIZE, self.pattern_bytes.len() + cmp::max(self.after, self.before));
+        //println!("buffer_size: {}", buffer_size);
+        let mut buffer = Buffer::new(buffer_size);
         let mut grep_ctr = 0;
         loop {
             buffer
@@ -163,34 +168,24 @@ impl Bgrep {
     }
 
     fn grep_buffer(&self, buf: &Buffer, offset: usize, filename: &String) {
-        for i in 0..buf.active_size {
-            let mut matched = true;
-            for (j, c_pattern) in self.pattern_bytes.iter().enumerate() {
-                if let Some(c_buf) = buf.at((i + j) as isize) {
-                    if c_buf != *c_pattern {
-                        matched = false;
-                        break;
-                    }
-                } else {
-                    return;
-                }
+        //println!("Start grep_buffer!");
+        let mut start_at = 0;
+        while let Some(i) = self.bmsearch.search(buf, start_at) {
+            let res_start = i as isize;
+            let res_end = (i + self.pattern_bytes.len()) as isize;
+            let before_start = cmp::max((i - self.before) as isize, buf.min_index);
+            let after_end = cmp::min(
+                (i + self.pattern_bytes.len() + self.after) as isize,
+                buf.max_index,
+            );
+            if let (Some(before), Some(result), Some(after)) = (
+                buf.view(before_start, res_start),
+                buf.view(res_start, res_end),
+                buf.view(res_end, after_end),
+            ) {
+                self.print_result(&filename, offset + i, &before, &result, &after);
             }
-            if matched {
-                let res_start = i as isize;
-                let res_end = (i + self.pattern_bytes.len()) as isize;
-                let before_start = cmp::max((i - self.before) as isize, buf.min_index);
-                let after_end = cmp::min(
-                    (i + self.pattern_bytes.len() + self.after) as isize,
-                    buf.max_index,
-                );
-                if let (Some(before), Some(result), Some(after)) = (
-                    buf.view(before_start, res_start),
-                    buf.view(res_start, res_end),
-                    buf.view(res_end, after_end),
-                ) {
-                    self.print_result(&filename, offset + i, &before, &result, &after);
-                }
-            }
+            start_at = i + 1;
         }
     }
 

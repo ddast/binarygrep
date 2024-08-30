@@ -6,7 +6,7 @@ use crate::buffer::Buffer;
 
 const ALPHABET_LEN: usize = 256;
 
-struct BoyerMooreSearch {
+pub struct BoyerMooreSearch {
     delta1: Vec<isize>,
     delta2: Vec<isize>,
     pat: Vec<u8>
@@ -25,21 +25,25 @@ impl BoyerMooreSearch {
         }
     }
 
-    pub fn search(&self, data: &Buffer) -> usize {
+    pub fn search(&self, data: &Buffer, offset: usize) -> Option<usize> {
         let patlen = self.pat.len();
 
         if patlen == 0 {
-            return 0;
+            return None;
         }
 
-        let mut delta1 = vec![patlen as isize; ALPHABET_LEN];
-        let mut delta2 = vec![0; patlen];
-        make_delta1(&mut delta1, &self.pat);
-        make_delta2(&mut delta2, &self.pat);
+        if offset >= data.active_size {
+            return None;
+        }
 
-        let mut i = patlen as isize - 1;
-        while i < data.active_size as isize {
+
+        let mut i = offset as isize + patlen as isize - 1;
+        //println!("offset: {:08x}; active_size: {}; i: {}", offset, data.active_size, i);
+        while i < (data.active_size + patlen) as isize {
             let mut j = patlen as isize - 1;
+            if data.at(i).is_none() {
+                break;
+            }
             while j >= 0 {
                 if data.at(i as isize).unwrap() == self.pat[j as usize] {
                     i -= 1;
@@ -49,13 +53,13 @@ impl BoyerMooreSearch {
                 }
             }
             if j < 0 {
-                return i as usize + 1;
+                return Some((i + 1) as usize);
             }
-            let shift = std::cmp::max(delta1[data.at(i as isize).unwrap() as usize], delta2[j as usize]);
+            let shift = std::cmp::max(self.delta1[data.at(i as isize).unwrap() as usize], self.delta2[j as usize]);
             i += shift;
         }
 
-        return 0;
+        return None;
     }
 }
 
@@ -66,9 +70,9 @@ fn make_delta1(delta1: &mut Vec<isize>, pat: &Vec<u8>) {
 }
 
 fn is_prefix(word: &Vec<u8>, pos: isize) -> bool {
-    let suffixlen = word.len() as isize - pos;
+    let suffixlen = word.len() - pos as usize;
     for i in 0..suffixlen {
-        if word[i as usize] != word[pos as usize + 1] {
+        if word[i] != word[pos as usize + i] {
             return false;
         }
     }
