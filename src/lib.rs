@@ -151,7 +151,6 @@ impl Bgrep {
 
     fn grep_fd(&self, filename: &String, f: &mut impl std::io::Read) -> Result<(), BgrepError> {
         let buffer_size = cmp::max(BUFFER_SIZE, self.pattern_bytes.len() + cmp::max(self.after, self.before));
-        //println!("buffer_size: {}", buffer_size);
         let mut buffer = Buffer::new(buffer_size);
         let mut grep_ctr = 0;
         loop {
@@ -168,7 +167,6 @@ impl Bgrep {
     }
 
     fn grep_buffer(&self, buf: &Buffer, offset: usize, filename: &String) {
-        //println!("Start grep_buffer!");
         let mut start_at = 0;
         while let Some(i) = self.bmsearch.search(buf, start_at) {
             let res_start = i as isize;

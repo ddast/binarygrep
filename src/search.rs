@@ -38,7 +38,6 @@ impl BoyerMooreSearch {
 
 
         let mut i = offset as isize + patlen as isize - 1;
-        //println!("offset: {:08x}; active_size: {}; i: {}", offset, data.active_size, i);
         while i < (data.active_size + patlen) as isize {
             let mut j = patlen as isize - 1;
             if data.at(i).is_none() {
