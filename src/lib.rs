@@ -166,7 +166,7 @@ impl Bgrep {
         for i in 0..buf.active_size {
             let mut matched = true;
             for (j, c_pattern) in self.pattern_bytes.iter().enumerate() {
-                if let Some(c_buf) = buf.at((i + j) as i32) {
+                if let Some(c_buf) = buf.at((i + j) as isize) {
                     if c_buf != *c_pattern {
                         matched = false;
                         break;
@@ -176,11 +176,11 @@ impl Bgrep {
                 }
             }
             if matched {
-                let res_start = i as i32;
-                let res_end = (i + self.pattern_bytes.len()) as i32;
-                let before_start = cmp::max((i - self.before) as i32, buf.min_index);
+                let res_start = i as isize;
+                let res_end = (i + self.pattern_bytes.len()) as isize;
+                let before_start = cmp::max((i - self.before) as isize, buf.min_index);
                 let after_end = cmp::min(
-                    (i + self.pattern_bytes.len() + self.after) as i32,
+                    (i + self.pattern_bytes.len() + self.after) as isize,
                     buf.max_index,
                 );
                 if let (Some(before), Some(result), Some(after)) = (

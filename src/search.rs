@@ -41,7 +41,7 @@ impl BoyerMooreSearch {
         while i < data.active_size as isize {
             let mut j = patlen as isize - 1;
             while j >= 0 {
-                if data.at(i as i32).unwrap() == self.pat[j as usize] { // TODO change i32 to isize
+                if data.at(i as isize).unwrap() == self.pat[j as usize] {
                     i -= 1;
                     j -= 1;
                 } else {
@@ -51,7 +51,7 @@ impl BoyerMooreSearch {
             if j < 0 {
                 return i as usize + 1;
             }
-            let shift = std::cmp::max(delta1[data.at(i as i32).unwrap() as usize], delta2[j as usize]); // TODO change i32 to isize
+            let shift = std::cmp::max(delta1[data.at(i as isize).unwrap() as usize], delta2[j as usize]);
             i += shift;
         }
 
