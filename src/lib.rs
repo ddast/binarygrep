@@ -10,6 +10,8 @@ use colored::Colorize;
 mod buffer;
 use crate::buffer::Buffer;
 
+mod search;
+
 const BUFFER_SIZE: usize = 4 * 1024 * 1024;
 
 #[derive(Parser)]
@@ -104,42 +106,58 @@ fn ascii_interpretation(buffer: &Vec<u8>) -> String {
 
 struct Bgrep {
     pattern_bytes: Vec<u8>,
-    file: String,
     after: usize,
     before: usize,
     with_filename: bool,
     no_ascii: bool,
     no_offset: bool,
+    bmsearch: search::BoyerMooreSearch,
 }
 
 impl Bgrep {
-    fn grep(&self) -> Result<(), BgrepError> {
-        if self.file == "-" {
+    fn new(cli: &Cli) -> Result<Bgrep, BgrepError> {
+        let filecount = cli.file.len();
+        let pattern_bytes = decode_hex(&cli.pattern)?;
+        Ok(Bgrep {
+            pattern_bytes: pattern_bytes.clone(),
+            after: cmp::max(cli.after, cli.context),
+            before: cmp::max(cli.before, cli.context),
+            with_filename: (filecount > 1 && !cli.no_filename)
+                || (filecount == 1 && cli.with_filename),
+            no_ascii: cli.no_ascii,
+            no_offset: cli.no_offset,
+            bmsearch: search::BoyerMooreSearch::new(pattern_bytes)
+        })
+    }
+
+    fn grep(&self, file: &String) -> Result<(), BgrepError> {
+        if file == "-" {
             let mut f = io::stdin();
-            self.grep_fd(&mut f)?;
+            self.grep_fd(&file, &mut f)?;
         } else {
-            let path = Path::new(&self.file);
+            let path = Path::new(&file);
             if path.is_dir() {
                 return Err(BgrepError(format!(
                     "Error: '{}' is a directory",
-                    &self.file
+                    &file
                 )));
             }
             let mut f = File::open(path)
-                .map_err(|err| BgrepError(format!("Cannot open file '{}': {}", &self.file, err)))?;
-            self.grep_fd(&mut f)?;
+                .map_err(|err| BgrepError(format!("Cannot open file '{}': {}", &file, err)))?;
+            self.grep_fd(&file, &mut f)?;
         }
         Ok(())
     }
 
-    fn grep_fd(&self, f: &mut impl std::io::Read) -> Result<(), BgrepError> {
-        let mut buffer = Buffer::new(BUFFER_SIZE);
+    fn grep_fd(&self, filename: &String, f: &mut impl std::io::Read) -> Result<(), BgrepError> {
+        let buffer_size = cmp::max(BUFFER_SIZE, self.pattern_bytes.len() + cmp::max(self.after, self.before));
+        let mut buffer = Buffer::new(buffer_size);
         let mut grep_ctr = 0;
         loop {
             buffer
                 .read(f)
                 .map_err(|err| BgrepError(format!("Error while reading: {}", err)))?;
-            self.grep_buffer(&buffer, grep_ctr);
+            self.grep_buffer(&buffer, grep_ctr, &filename);
             grep_ctr += buffer.active_size;
             if buffer.is_eof() {
                 break;
@@ -148,40 +166,29 @@ impl Bgrep {
         Ok(())
     }
 
-    fn grep_buffer(&self, buf: &Buffer, offset: usize) {
-        for i in 0..buf.active_size {
-            let mut matched = true;
-            for (j, c_pattern) in self.pattern_bytes.iter().enumerate() {
-                if let Some(c_buf) = buf.at((i + j) as i32) {
-                    if c_buf != *c_pattern {
-                        matched = false;
-                        break;
-                    }
-                } else {
-                    return;
-                }
+    fn grep_buffer(&self, buf: &Buffer, offset: usize, filename: &String) {
+        let mut start_at = 0;
+        while let Some(i) = self.bmsearch.search(buf, start_at) {
+            let res_start = i as isize;
+            let res_end = (i + self.pattern_bytes.len()) as isize;
+            let before_start = cmp::max((i - self.before) as isize, buf.min_index);
+            let after_end = cmp::min(
+                (i + self.pattern_bytes.len() + self.after) as isize,
+                buf.max_index,
+            );
+            if let (Some(before), Some(result), Some(after)) = (
+                buf.view(before_start, res_start),
+                buf.view(res_start, res_end),
+                buf.view(res_end, after_end),
+            ) {
+                self.print_result(&filename, offset + i, &before, &result, &after);
             }
-            if matched {
-                let res_start = i as i32;
-                let res_end = (i + self.pattern_bytes.len()) as i32;
-                let before_start = cmp::max((i - self.before) as i32, buf.min_index);
-                let after_end = cmp::min(
-                    (i + self.pattern_bytes.len() + self.after) as i32,
-                    buf.max_index,
-                );
-                if let (Some(before), Some(result), Some(after)) = (
-                    buf.view(before_start, res_start),
-                    buf.view(res_start, res_end),
-                    buf.view(res_end, after_end),
-                ) {
-                    self.print_result(offset + i, &before, &result, &after);
-                }
-            }
+            start_at = i + 1;
         }
     }
 
-    fn print_result(&self, address: usize, before: &Vec<u8>, result: &Vec<u8>, after: &Vec<u8>) {
-        let filename = if self.with_filename { &self.file } else { "" };
+    fn print_result(&self, file: &String, address: usize, before: &Vec<u8>, result: &Vec<u8>, after: &Vec<u8>) {
+        let filename = if self.with_filename { &file } else { "" };
         let offset = if self.no_offset {
             String::new()
         } else {
@@ -224,19 +231,9 @@ impl Bgrep {
 
 pub fn run() -> Result<(), BgrepError> {
     let cli = Cli::parse();
-    let filecount = cli.file.len();
+    let bgrep = Bgrep::new(&cli)?;
     for file in cli.file {
-        let bgrep = Bgrep {
-            file,
-            pattern_bytes: decode_hex(&cli.pattern)?,
-            after: cmp::max(cli.after, cli.context),
-            before: cmp::max(cli.before, cli.context),
-            with_filename: (filecount > 1 && !cli.no_filename)
-                || (filecount == 1 && cli.with_filename),
-            no_ascii: cli.no_ascii,
-            no_offset: cli.no_offset,
-        };
-        bgrep.grep()?;
+        bgrep.grep(&file)?;
     }
     Ok(())
 }

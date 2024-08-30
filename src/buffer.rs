@@ -11,8 +11,8 @@ enum BufferState {
 /// Buffer that stores some bytes before and after the current byte view
 pub struct Buffer {
     pub active_size: usize,
-    pub min_index: i32,
-    pub max_index: i32,
+    pub min_index: isize,
+    pub max_index: isize,
     buffer: Vec<u8>,
     root_index: usize,
     size: usize,
@@ -62,7 +62,7 @@ impl Buffer {
     }
 
     /// Returns the value at offset `i` if this is a valid index
-    pub fn at(&self, i: i32) -> Option<u8> {
+    pub fn at(&self, i: isize) -> Option<u8> {
         if i < self.min_index || i >= self.max_index {
             return None;
         }
@@ -71,7 +71,7 @@ impl Buffer {
     }
 
     /// Return a view of the buffer from index `first` to `last`
-    pub fn view(&self, first: i32, last: i32) -> Option<Vec<u8>> {
+    pub fn view(&self, first: isize, last: isize) -> Option<Vec<u8>> {
         if first > last
             || first < self.min_index
             || first > self.max_index
@@ -107,15 +107,15 @@ impl Buffer {
                 begin = self.size;
                 end = begin + 2 * self.size;
                 self.min_index = 0;
-                self.max_index = (end - begin) as i32;
+                self.max_index = (end - begin) as isize;
                 self.state = BufferState::InitialisationPending;
             }
             BufferState::InitialisationPending | BufferState::Initialised => {
                 self.root_index = (self.root_index + self.size) % (3 * self.size);
                 begin = (self.root_index + 2 * self.size) % (3 * self.size);
                 end = begin + self.size;
-                self.min_index = -(self.size as i32);
-                self.max_index = (self.size + end - begin) as i32;
+                self.min_index = -(self.size as isize);
+                self.max_index = (self.size + end - begin) as isize;
                 self.state = BufferState::Initialised;
             }
             BufferState::EndOfFile => {
@@ -140,11 +140,11 @@ impl Buffer {
             BufferState::EndOfFile => self.active_size = 0,
         }
         self.state = BufferState::EndOfFile;
-        self.max_index = self.active_size as i32;
+        self.max_index = self.active_size as isize;
     }
 
     /// Transforms an index relative to the current buffer to the real index of the buffer
-    fn get_absolute_index(&self, i: i32) -> usize {
+    fn get_absolute_index(&self, i: isize) -> usize {
         let absolute_index;
         if i >= 0 {
             absolute_index = (self.root_index + self.size + (i as usize)) % (3 * self.size);
