@@ -1,5 +1,5 @@
 use std::cmp;
-use std::fs::File;
+use std::fs;
 use std::io;
 use std::path::Path;
 use std::u8;
@@ -22,6 +22,9 @@ struct Cli {
     /// Search for PATTERN in each file. "-" is standard input.
     #[arg(default_values_t = ["-".to_string()])]
     file: Vec<String>,
+    /// Search in all files recursively, symbolic links are followed
+    #[arg(short = 'r', long)]
+    recursive: bool,
     /// Print <N> bytes after the found pattern
     #[arg(short = 'A', long, default_value_t = 0, value_name = "N")]
     after: usize,
@@ -106,6 +109,7 @@ fn ascii_interpretation(buffer: &Vec<u8>) -> String {
 
 struct Bgrep {
     pattern_bytes: Vec<u8>,
+    recursive: bool,
     after: usize,
     before: usize,
     with_filename: bool,
@@ -116,17 +120,18 @@ struct Bgrep {
 
 impl Bgrep {
     fn new(cli: &Cli) -> Result<Bgrep, BgrepError> {
-        let filecount = cli.file.len();
+        let multiple_files = cli.file.len() > 1 || cli.recursive;
         let pattern_bytes = decode_hex(&cli.pattern)?;
         Ok(Bgrep {
             pattern_bytes: pattern_bytes.clone(),
+            recursive: cli.recursive,
             after: cmp::max(cli.after, cli.context),
             before: cmp::max(cli.before, cli.context),
-            with_filename: (filecount > 1 && !cli.no_filename)
-                || (filecount == 1 && cli.with_filename),
+            with_filename: (multiple_files && !cli.no_filename)
+                || (!multiple_files && cli.with_filename),
             no_ascii: cli.no_ascii,
             no_offset: cli.no_offset,
-            bmsearch: search::BoyerMooreSearch::new(pattern_bytes)
+            bmsearch: search::BoyerMooreSearch::new(pattern_bytes),
         })
     }
 
@@ -136,21 +141,45 @@ impl Bgrep {
             self.grep_fd(&file, &mut f)?;
         } else {
             let path = Path::new(&file);
-            if path.is_dir() {
-                return Err(BgrepError(format!(
-                    "Error: '{}' is a directory",
-                    &file
-                )));
-            }
-            let mut f = File::open(path)
-                .map_err(|err| BgrepError(format!("Cannot open file '{}': {}", &file, err)))?;
-            self.grep_fd(&file, &mut f)?;
+            self.grep_path(&path)?;
         }
         Ok(())
     }
 
-    fn grep_fd(&self, filename: &String, f: &mut impl std::io::Read) -> Result<(), BgrepError> {
-        let buffer_size = cmp::max(BUFFER_SIZE, self.pattern_bytes.len() + cmp::max(self.after, self.before));
+    fn grep_path(&self, path: &Path) -> Result<(), BgrepError> {
+        if path.is_dir() {
+            if !self.recursive {
+                return Err(BgrepError(format!(
+                    "Error: '{}' is a directory",
+                    &path.to_str().unwrap()
+                )));
+            }
+            for entry in fs::read_dir(path)
+                .map_err(|err| BgrepError(format!("Error while reading directory: {}", err)))?
+            {
+                let entry_path = entry
+                    .map_err(|err| BgrepError(format!("Error accessing directory entry: {}", err)))?
+                    .path();
+                self.grep_path(&entry_path)?;
+            }
+        } else {
+            let mut f = std::fs::File::open(path).map_err(|err| {
+                BgrepError(format!(
+                    "Cannot open file '{}': {}",
+                    &path.to_str().unwrap(),
+                    err
+                ))
+            })?;
+            self.grep_fd(path.to_str().unwrap(), &mut f)?;
+        }
+        Ok(())
+    }
+
+    fn grep_fd(&self, filename: &str, f: &mut impl std::io::Read) -> Result<(), BgrepError> {
+        let buffer_size = cmp::max(
+            BUFFER_SIZE,
+            self.pattern_bytes.len() + cmp::max(self.after, self.before),
+        );
         let mut buffer = Buffer::new(buffer_size);
         let mut grep_ctr = 0;
         loop {
@@ -166,7 +195,7 @@ impl Bgrep {
         Ok(())
     }
 
-    fn grep_buffer(&self, buf: &Buffer, offset: usize, filename: &String) {
+    fn grep_buffer(&self, buf: &Buffer, offset: usize, filename: &str) {
         let mut start_at = 0;
         while let Some(i) = self.bmsearch.search(buf, start_at) {
             let res_start = i as isize;
@@ -187,7 +216,14 @@ impl Bgrep {
         }
     }
 
-    fn print_result(&self, file: &String, address: usize, before: &Vec<u8>, result: &Vec<u8>, after: &Vec<u8>) {
+    fn print_result(
+        &self,
+        file: &str,
+        address: usize,
+        before: &Vec<u8>,
+        result: &Vec<u8>,
+        after: &Vec<u8>,
+    ) {
         let filename = if self.with_filename { &file } else { "" };
         let offset = if self.no_offset {
             String::new()
