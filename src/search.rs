@@ -9,7 +9,7 @@ const ALPHABET_LEN: usize = 256;
 pub struct BoyerMooreSearch {
     delta1: Vec<isize>,
     delta2: Vec<isize>,
-    pat: Vec<u8>
+    pat: Vec<u8>,
 }
 
 impl BoyerMooreSearch {
@@ -21,7 +21,7 @@ impl BoyerMooreSearch {
         BoyerMooreSearch {
             delta1,
             delta2,
-            pat
+            pat,
         }
     }
 
@@ -35,7 +35,6 @@ impl BoyerMooreSearch {
         if offset >= data.active_size {
             return None;
         }
-
 
         let mut i = offset as isize + patlen as isize - 1;
         while i < (data.active_size + patlen) as isize {
@@ -54,7 +53,10 @@ impl BoyerMooreSearch {
             if j < 0 {
                 return Some((i + 1) as usize);
             }
-            let shift = std::cmp::max(self.delta1[data.at(i as isize).unwrap() as usize], self.delta2[j as usize]);
+            let shift = std::cmp::max(
+                self.delta1[data.at(i as isize).unwrap() as usize],
+                self.delta2[j as usize],
+            );
             i += shift;
         }
 
