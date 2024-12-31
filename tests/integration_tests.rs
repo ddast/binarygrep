@@ -165,9 +165,7 @@ fn test_no_offset() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn test_recursive() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = assert_cmd::Command::cargo_bin("binarygrep")?;
-    cmd.arg("--recursive")
-        .arg("deede4c1")
-        .arg("tests");
+    cmd.arg("--recursive").arg("deede4c1").arg("tests");
     cmd.assert().success().stdout("tests/subdir/testdata_1200 000002d1: deede4c1  ....\ntests/testdata_4194304 0000d250: deede4c1  ....\n");
     Ok(())
 }
