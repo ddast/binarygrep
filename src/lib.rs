@@ -11,6 +11,13 @@ mod buffer;
 use crate::buffer::Buffer;
 
 mod search;
+use search::Search;
+
+mod bmsearch;
+use bmsearch::BoyerMooreSearch;
+
+mod simplesearch;
+use simplesearch::SimpleSearch;
 
 const BUFFER_SIZE: usize = 4 * 1024 * 1024;
 
@@ -25,6 +32,9 @@ struct Cli {
     /// Search in all files recursively, symbolic links are followed
     #[arg(short = 'r', long)]
     recursive: bool,
+    /// Allow extended search patterns
+    #[arg(short = 'x', long)]
+    extended: bool,
     /// Print <N> bytes after the found pattern
     #[arg(short = 'A', long, default_value_t = 0, value_name = "N")]
     after: usize,
@@ -107,7 +117,7 @@ fn ascii_interpretation(buffer: &Vec<u8>) -> String {
     ascii
 }
 
-struct Bgrep {
+struct Bgrep<T: Search> {
     pattern_bytes: Vec<u8>,
     recursive: bool,
     after: usize,
@@ -115,11 +125,11 @@ struct Bgrep {
     with_filename: bool,
     no_ascii: bool,
     no_offset: bool,
-    bmsearch: search::BoyerMooreSearch,
+    search: T,
 }
 
-impl Bgrep {
-    fn new(cli: &Cli) -> Result<Bgrep, BgrepError> {
+impl<T: Search> Bgrep<T> {
+    fn new(cli: &Cli) -> Result<Bgrep<T>, BgrepError> {
         let multiple_files = cli.file.len() > 1 || cli.recursive;
         let pattern_bytes = decode_hex(&cli.pattern)?;
         Ok(Bgrep {
@@ -131,7 +141,7 @@ impl Bgrep {
                 || (!multiple_files && cli.with_filename),
             no_ascii: cli.no_ascii,
             no_offset: cli.no_offset,
-            bmsearch: search::BoyerMooreSearch::new(pattern_bytes),
+            search: T::new(pattern_bytes),
         })
     }
 
@@ -197,7 +207,7 @@ impl Bgrep {
 
     fn grep_buffer(&self, buf: &Buffer, offset: usize, filename: &str) {
         let mut start_at = 0;
-        while let Some(i) = self.bmsearch.search(buf, start_at) {
+        while let Some(i) = self.search.search(buf, start_at) {
             let res_start = i as isize;
             let res_end = (i + self.pattern_bytes.len()) as isize;
             let before_start = cmp::max((i - self.before) as isize, buf.min_index);
@@ -267,7 +277,7 @@ impl Bgrep {
 
 pub fn run() -> Result<(), BgrepError> {
     let cli = Cli::parse();
-    let bgrep = Bgrep::new(&cli)?;
+    let bgrep: Bgrep<BoyerMooreSearch> = Bgrep::new(&cli)?;
     for file in cli.file {
         bgrep.grep(&file)?;
     }
