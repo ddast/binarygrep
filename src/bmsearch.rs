@@ -2,7 +2,9 @@
 // Translated C implementation from
 // https://en.wikipedia.org/wiki/Boyer%E2%80%93Moore_string-search_algorithm
 
+use crate::bgreperror::BgrepError;
 use crate::buffer::Buffer;
+use crate::search::decode_hex;
 use crate::search::Search;
 
 const ALPHABET_LEN: usize = 256;
@@ -14,19 +16,20 @@ pub struct BoyerMooreSearch {
 }
 
 impl Search for BoyerMooreSearch {
-    fn new(pat: Vec<u8>) -> BoyerMooreSearch {
+    fn new(pattern_hex: &str) -> Result<BoyerMooreSearch, BgrepError> {
+        let pat = decode_hex(pattern_hex)?;
         let mut delta1 = vec![pat.len() as isize; ALPHABET_LEN];
         let mut delta2 = vec![0; pat.len()];
         make_delta1(&mut delta1, &pat);
         make_delta2(&mut delta2, &pat);
-        BoyerMooreSearch {
+        Ok(BoyerMooreSearch {
             delta1,
             delta2,
             pat,
-        }
+        })
     }
 
-    fn search(&self, data: &Buffer, offset: usize) -> Option<usize> {
+    fn search(&self, data: &Buffer, offset: usize) -> Option<(usize, usize)> {
         let patlen = self.pat.len();
 
         if patlen == 0 {
@@ -52,7 +55,7 @@ impl Search for BoyerMooreSearch {
                 }
             }
             if j < 0 {
-                return Some((i + 1) as usize);
+                return Some(((i + 1) as usize, patlen));
             }
             let shift = std::cmp::max(
                 self.delta1[data.at(i as isize).unwrap() as usize],
@@ -62,6 +65,10 @@ impl Search for BoyerMooreSearch {
         }
 
         return None;
+    }
+
+    fn max_pattern_len(&self) -> usize {
+        self.pat.len()
     }
 }
 

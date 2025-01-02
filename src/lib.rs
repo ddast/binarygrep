@@ -19,6 +19,12 @@ use bmsearch::BoyerMooreSearch;
 mod simplesearch;
 use simplesearch::SimpleSearch;
 
+mod extendedsearch;
+use extendedsearch::ExtendedSearch;
+
+mod bgreperror;
+pub use bgreperror::BgrepError;
+
 const BUFFER_SIZE: usize = 4 * 1024 * 1024;
 
 #[derive(Parser)]
@@ -35,6 +41,9 @@ struct Cli {
     /// Allow extended search patterns
     #[arg(short = 'x', long)]
     extended: bool,
+    /// Use simple search algorithm
+    #[arg(long)]
+    simple_search: bool,
     /// Print <N> bytes after the found pattern
     #[arg(short = 'A', long, default_value_t = 0, value_name = "N")]
     after: usize,
@@ -58,45 +67,6 @@ struct Cli {
     no_offset: bool,
 }
 
-pub struct BgrepError(String);
-
-impl std::fmt::Display for BgrepError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl std::fmt::Debug for BgrepError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self)
-    }
-}
-
-fn decode_hex(pattern_input: &String) -> Result<Vec<u8>, BgrepError> {
-    if !pattern_input.is_ascii() {
-        return Err(BgrepError(format!(
-            "Hex pattern contains non-ascii characters: {}",
-            pattern_input
-        )));
-    }
-    let pattern = pattern_input.replace(" ", "");
-    if pattern.len() % 2 != 0 {
-        return Err(BgrepError(format!(
-            "Hex pattern does not have even amount of characters: {}",
-            pattern_input
-        )));
-    }
-    (0..(pattern.len() / 2))
-        .map(|i| {
-            Ok(
-                u8::from_str_radix(&pattern[(2 * i)..(2 * i + 2)], 16).map_err(|err| {
-                    BgrepError(format!("Invalid hex pattern '{}': {}", pattern_input, err))
-                })?,
-            )
-        })
-        .collect()
-}
-
 fn encode_hex(buffer: &Vec<u8>) -> String {
     let mut result = String::new();
     for x in buffer {
@@ -118,7 +88,6 @@ fn ascii_interpretation(buffer: &Vec<u8>) -> String {
 }
 
 struct Bgrep<T: Search> {
-    pattern_bytes: Vec<u8>,
     recursive: bool,
     after: usize,
     before: usize,
@@ -131,9 +100,7 @@ struct Bgrep<T: Search> {
 impl<T: Search> Bgrep<T> {
     fn new(cli: &Cli) -> Result<Bgrep<T>, BgrepError> {
         let multiple_files = cli.file.len() > 1 || cli.recursive;
-        let pattern_bytes = decode_hex(&cli.pattern)?;
         Ok(Bgrep {
-            pattern_bytes: pattern_bytes.clone(),
             recursive: cli.recursive,
             after: cmp::max(cli.after, cli.context),
             before: cmp::max(cli.before, cli.context),
@@ -141,11 +108,11 @@ impl<T: Search> Bgrep<T> {
                 || (!multiple_files && cli.with_filename),
             no_ascii: cli.no_ascii,
             no_offset: cli.no_offset,
-            search: T::new(pattern_bytes),
+            search: T::new(&cli.pattern)?,
         })
     }
 
-    fn grep(&self, file: &String) -> Result<(), BgrepError> {
+    fn grep(&self, file: &str) -> Result<(), BgrepError> {
         if file == "-" {
             let mut f = io::stdin();
             self.grep_fd(&file, &mut f)?;
@@ -188,7 +155,7 @@ impl<T: Search> Bgrep<T> {
     fn grep_fd(&self, filename: &str, f: &mut impl std::io::Read) -> Result<(), BgrepError> {
         let buffer_size = cmp::max(
             BUFFER_SIZE,
-            self.pattern_bytes.len() + cmp::max(self.after, self.before),
+            self.search.max_pattern_len() + cmp::max(self.after, self.before),
         );
         let mut buffer = Buffer::new(buffer_size);
         let mut grep_ctr = 0;
@@ -207,14 +174,11 @@ impl<T: Search> Bgrep<T> {
 
     fn grep_buffer(&self, buf: &Buffer, offset: usize, filename: &str) {
         let mut start_at = 0;
-        while let Some(i) = self.search.search(buf, start_at) {
+        while let Some((i, match_len)) = self.search.search(buf, start_at) {
             let res_start = i as isize;
-            let res_end = (i + self.pattern_bytes.len()) as isize;
+            let res_end = (i + match_len) as isize;
             let before_start = cmp::max((i - self.before) as isize, buf.min_index);
-            let after_end = cmp::min(
-                (i + self.pattern_bytes.len() + self.after) as isize,
-                buf.max_index,
-            );
+            let after_end = cmp::min((i + match_len + self.after) as isize, buf.max_index);
             if let (Some(before), Some(result), Some(after)) = (
                 buf.view(before_start, res_start),
                 buf.view(res_start, res_end),
@@ -277,8 +241,18 @@ impl<T: Search> Bgrep<T> {
 
 pub fn run() -> Result<(), BgrepError> {
     let cli = Cli::parse();
-    let bgrep: Bgrep<BoyerMooreSearch> = Bgrep::new(&cli)?;
-    for file in cli.file {
+    if cli.extended {
+        return run2::<ExtendedSearch>(&cli);
+    } else if cli.simple_search {
+        return run2::<SimpleSearch>(&cli);
+    } else {
+        return run2::<BoyerMooreSearch>(&cli);
+    }
+}
+
+fn run2<T: Search>(cli: &Cli) -> Result<(), BgrepError> {
+    let bgrep: Bgrep<T> = Bgrep::new(&cli)?;
+    for file in &cli.file {
         bgrep.grep(&file)?;
     }
     Ok(())
@@ -287,48 +261,6 @@ pub fn run() -> Result<(), BgrepError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_decode_hex_valid() {
-        let hex_string = String::from("b081133bbf0cb70a288734");
-        let expected_hexbytes: Vec<u8> = vec![
-            0xb0, 0x81, 0x13, 0x3b, 0xbf, 0x0c, 0xb7, 0x0a, 0x28, 0x87, 0x34,
-        ];
-        match decode_hex(&hex_string) {
-            Err(_) => assert!(false),
-            Ok(hexbytes) => assert_eq!(hexbytes, expected_hexbytes),
-        }
-    }
-
-    #[test]
-    fn test_decode_hex_spaces() {
-        let hex_string = String::from("b 08 11 33b bf0 cb7 0a28 8734");
-        let expected_hexbytes: Vec<u8> = vec![
-            0xb0, 0x81, 0x13, 0x3b, 0xbf, 0x0c, 0xb7, 0x0a, 0x28, 0x87, 0x34,
-        ];
-        match decode_hex(&hex_string) {
-            Err(_) => assert!(false),
-            Ok(hexbytes) => assert_eq!(hexbytes, expected_hexbytes),
-        }
-    }
-
-    #[test]
-    fn test_decode_hex_invalid_length() {
-        let hex_string = String::from("b081133bbf0cb70a28873");
-        match decode_hex(&hex_string) {
-            Err(_) => (),
-            Ok(_) => assert!(false),
-        }
-    }
-
-    #[test]
-    fn test_decode_hex_invalid_characters() {
-        let hex_string = String::from("b081133zbf0cb70a288734");
-        match decode_hex(&hex_string) {
-            Err(_) => (),
-            Ok(_) => assert!(false),
-        }
-    }
 
     #[test]
     fn test_encode_hex_valid() {

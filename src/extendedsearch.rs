@@ -3,13 +3,13 @@ use crate::buffer::Buffer;
 use crate::search::decode_hex;
 use crate::search::Search;
 
-pub struct SimpleSearch {
+pub struct ExtendedSearch {
     pattern: Vec<u8>,
 }
 
-impl Search for SimpleSearch {
-    fn new(pattern: &str) -> Result<SimpleSearch, BgrepError> {
-        Ok(SimpleSearch {
+impl Search for ExtendedSearch {
+    fn new(pattern: &str) -> Result<ExtendedSearch, BgrepError> {
+        Ok(ExtendedSearch {
             pattern: decode_hex(pattern)?,
         })
     }
