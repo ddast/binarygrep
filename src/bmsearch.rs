@@ -15,21 +15,8 @@ pub struct BoyerMooreSearch {
     pat: Vec<u8>,
 }
 
-impl Search for BoyerMooreSearch {
-    fn new(pattern_hex: &str) -> Result<BoyerMooreSearch, BgrepError> {
-        let pat = decode_hex(pattern_hex)?;
-        let mut delta1 = vec![pat.len() as isize; ALPHABET_LEN];
-        let mut delta2 = vec![0; pat.len()];
-        make_delta1(&mut delta1, &pat);
-        make_delta2(&mut delta2, &pat);
-        Ok(BoyerMooreSearch {
-            delta1,
-            delta2,
-            pat,
-        })
-    }
-
-    fn search(&self, data: &Buffer, offset: usize) -> Option<(usize, usize)> {
+impl BoyerMooreSearch {
+    fn search_next(&self, data: &Buffer, offset: usize) -> Option<(usize, usize)> {
         let patlen = self.pat.len();
 
         if patlen == 0 {
@@ -65,6 +52,34 @@ impl Search for BoyerMooreSearch {
         }
 
         return None;
+    }
+}
+
+impl Search for BoyerMooreSearch {
+    fn new(pattern_hex: &str) -> Result<BoyerMooreSearch, BgrepError> {
+        let pat = decode_hex(pattern_hex)?;
+        let mut delta1 = vec![pat.len() as isize; ALPHABET_LEN];
+        let mut delta2 = vec![0; pat.len()];
+        make_delta1(&mut delta1, &pat);
+        make_delta2(&mut delta2, &pat);
+        Ok(BoyerMooreSearch {
+            delta1,
+            delta2,
+            pat,
+        })
+    }
+
+    fn search(&self, data: &Buffer, offset: usize) -> Vec<(usize, usize)> {
+        let mut start_at = offset;
+        let mut result = vec![];
+        loop {
+            if let Some((i, match_len)) = self.search_next(data, start_at) {
+                result.push((i, match_len));
+                start_at = i + 1;
+            } else {
+                return result;
+            }
+        }
     }
 
     fn max_pattern_len(&self) -> usize {

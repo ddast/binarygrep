@@ -14,13 +14,14 @@ impl Search for SimpleSearch {
         })
     }
 
-    fn search(&self, data: &Buffer, offset: usize) -> Option<(usize, usize)> {
+    fn search(&self, data: &Buffer, offset: usize) -> Vec<(usize, usize)> {
+        let mut result = vec![];
         if self.pattern.len() == 0 {
-            return None;
+            return result;
         }
 
         if offset >= data.active_size {
-            return None;
+            return result;
         }
 
         for i in offset..data.active_size {
@@ -32,14 +33,14 @@ impl Search for SimpleSearch {
                         break;
                     }
                 } else {
-                    return None;
+                    return result;
                 }
             }
             if matched {
-                return Some((i, self.pattern.len()));
+                result.push((i, self.pattern.len()));
             }
         }
-        return None;
+        return result;
     }
 
     fn max_pattern_len(&self) -> usize {

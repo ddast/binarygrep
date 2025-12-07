@@ -5,7 +5,7 @@ pub trait Search {
     fn new(pat: &str) -> Result<Self, BgrepError>
     where
         Self: Sized;
-    fn search(&self, data: &Buffer, offset: usize) -> Option<(usize, usize)>;
+    fn search(&self, data: &Buffer, offset: usize) -> Vec<(usize, usize)>;
     fn max_pattern_len(&self) -> usize;
 }
 

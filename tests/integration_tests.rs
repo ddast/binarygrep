@@ -10,6 +10,8 @@ fn test_firstbytes() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert().success().stdout(output);
     cmd.arg("--simple-search");
     cmd.assert().success().stdout(output);
+    cmd.arg("--extended");
+    cmd.assert().success().stdout(output);
     Ok(())
 }
 
@@ -20,6 +22,8 @@ fn test_small_file() -> Result<(), Box<dyn std::error::Error>> {
     let output = "00000256: c3df\n";
     cmd.assert().success().stdout(output);
     cmd.arg("--simple-search");
+    cmd.assert().success().stdout(output);
+    cmd.arg("--extended");
     cmd.assert().success().stdout(output);
     Ok(())
 }
@@ -35,6 +39,8 @@ fn test_stdin() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert().success().stdout(output);
     cmd.arg("--simple-search");
     cmd.assert().success().stdout(output);
+    cmd.arg("--extended");
+    cmd.assert().success().stdout(output);
     Ok(())
 }
 
@@ -47,6 +53,8 @@ fn test_file_below_buffersize() -> Result<(), Box<dyn std::error::Error>> {
     let output = "0001f60d: 7fdd\n00023301: 7fdd\n0002bd5d: 7fdd\n0004c243: 7fdd\n0004cc4d: 7fdd\n0005063c: 7fdd\n000534eb: 7fdd\n0006b6d2: 7fdd\n000bcf36: 7fdd\n001122ab: 7fdd\n00119647: 7fdd\n0014a4a4: 7fdd\n00180dd1: 7fdd\n001d1d9d: 7fdd\n001d65cc: 7fdd\n001e8483: 7fdd\n001ede62: 7fdd\n00223273: 7fdd\n00228bd2: 7fdd\n002363e2: 7fdd\n00261457: 7fdd\n002716a7: 7fdd\n00271aa4: 7fdd\n002a384a: 7fdd\n002ac445: 7fdd\n002b0db8: 7fdd\n002b4902: 7fdd\n002b66f3: 7fdd\n002ba4a0: 7fdd\n002d5df5: 7fdd\n002d788b: 7fdd\n002f522c: 7fdd\n002fa2b5: 7fdd\n00334ce3: 7fdd\n00345997: 7fdd\n00347ec3: 7fdd\n0034ec4f: 7fdd\n003511a2: 7fdd\n003512cd: 7fdd\n00354773: 7fdd\n00357fbc: 7fdd\n003661ff: 7fdd\n0036a856: 7fdd\n00383561: 7fdd\n0038ea17: 7fdd\n0039d562: 7fdd\n0039f097: 7fdd\n003c224d: 7fdd\n003c5ad0: 7fdd\n003cccd9: 7fdd\n003ce7f1: 7fdd\n003f9978: 7fdd\n";
     cmd.assert().success().stdout(output);
     cmd.arg("--simple-search");
+    cmd.assert().success().stdout(output);
+    cmd.arg("--extended");
     cmd.assert().success().stdout(output);
     Ok(())
 }
@@ -61,6 +69,8 @@ fn test_file_above_buffersize() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert().success().stdout(output);
     cmd.arg("--simple-search");
     cmd.assert().success().stdout(output);
+    cmd.arg("--extended");
+    cmd.assert().success().stdout(output);
     Ok(())
 }
 
@@ -73,6 +83,8 @@ fn test_file_below_buffersize_zero() -> Result<(), Box<dyn std::error::Error>> {
     let output = "0001b694: 0000\n0003bf65: 0000\n00052251: 0000\n00054560: 0000\n000691da: 0000\n0006ff36: 0000\n00078aca: 0000\n0008bec2: 0000\n0009afc6: 0000\n000aafe1: 0000\n000c69fd: 0000\n000c8246: 0000\n000ca494: 0000\n000cdc9f: 0000\n000d4548: 0000\n000f3682: 0000\n00118fcd: 0000\n00135f0d: 0000\n00151e60: 0000\n001670b2: 0000\n0017e7a1: 0000\n00191437: 0000\n0019c389: 0000\n001b0a7e: 0000\n001b9998: 0000\n001d35ba: 0000\n001e6ec1: 0000\n001f214f: 0000\n00215163: 0000\n0021b5b0: 0000\n00247d10: 0000\n002574f8: 0000\n0026efdf: 0000\n0028ad73: 0000\n0029f4c2: 0000\n002af854: 0000\n002ca3b0: 0000\n002d9656: 0000\n002da31c: 0000\n002ea266: 0000\n002f4a42: 0000\n002f95b1: 0000\n0030f08a: 0000\n0034212f: 0000\n003460ca: 0000\n003505fd: 0000\n00352094: 0000\n003599ea: 0000\n0035c893: 0000\n0035d439: 0000\n0036493f: 0000\n00372124: 0000\n00372400: 0000\n0038c23c: 0000\n003bc7d6: 0000\n003bdee2: 0000\n003c1218: 0000\n003ca13c: 0000\n003d51dc: 0000\n003d5735: 0000\n003dbbf1: 0000\n";
     cmd.assert().success().stdout(output);
     cmd.arg("--simple-search");
+    cmd.assert().success().stdout(output);
+    cmd.arg("--extended");
     cmd.assert().success().stdout(output);
     Ok(())
 }
@@ -87,6 +99,8 @@ fn test_file_above_buffersize_zero() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert().success().stdout(output);
     cmd.arg("--simple-search");
     cmd.assert().success().stdout(output);
+    cmd.arg("--extended");
+    cmd.assert().success().stdout(output);
     Ok(())
 }
 
@@ -100,6 +114,8 @@ fn test_large_file() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert().success().stdout(output);
     cmd.arg("--simple-search");
     cmd.assert().success().stdout(output);
+    cmd.arg("--extended");
+    cmd.assert().success().stdout(output);
     Ok(())
 }
 
@@ -112,6 +128,68 @@ fn test_buffer_boundary() -> Result<(), Box<dyn std::error::Error>> {
     let output = "003ffff0: 9a1426792ae8bda3cbc4dc5171d62910c7ccb128e7d2f33b65bc919259284828\n";
     cmd.assert().success().stdout(output);
     cmd.arg("--simple-search");
+    cmd.assert().success().stdout(output);
+    cmd.arg("--extended");
+    cmd.assert().success().stdout(output);
+    Ok(())
+}
+
+#[test]
+fn test_wildcard() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = assert_cmd::Command::cargo_bin("binarygrep")?;
+    cmd.arg("--no-ascii")
+        .arg("--extended")
+        .arg("0b.00.bb")
+        .arg("tests/testdata_10485760");
+    let output = "00449923: 0b5b0071bb\n004ec2fd: 0b660080bb\n005c5a8a: 0b05009dbb\n00634a75: 0b970037bb\n";
+    cmd.assert().success().stdout(output);
+    Ok(())
+}
+
+#[test]
+fn test_characterset() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = assert_cmd::Command::cargo_bin("binarygrep")?;
+    cmd.arg("--no-ascii")
+        .arg("--extended")
+        .arg("6a42[be,f0,a9,ae]")
+        .arg("tests/testdata_10485760");
+    let output = "0002a525: 6a42f0\n001311a6: 6a42be\n003f9cad: 6a42be\n005aa229: 6a42a9\n00719bb9: 6a42be\n007f10bc: 6a42ae\n007f2799: 6a42be\n00842804: 6a42f0\n";
+    cmd.assert().success().stdout(output);
+    Ok(())
+}
+
+#[test]
+fn test_quantifier() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = assert_cmd::Command::cargo_bin("binarygrep")?;
+    cmd.arg("--no-ascii")
+        .arg("--extended")
+        .arg("05{3,6}")
+        .arg("tests/testdata_10485760");
+    let output = "0076a138: 050505\n00a00000: 050505\n00a00001: 050505\n00a00002: 050505\n00a00000: 05050505\n00a00001: 05050505\n00a00000: 0505050505\n";
+    cmd.assert().success().stdout(output);
+    Ok(())
+}
+
+#[test]
+fn test_wildcard_with_quantifier() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = assert_cmd::Command::cargo_bin("binarygrep")?;
+    cmd.arg("--no-ascii")
+        .arg("--extended")
+        .arg("42.{3}f2ab")
+        .arg("tests/testdata_10485760");
+    let output = "009d41d7: 421e7e1df2ab\n";
+    cmd.assert().success().stdout(output);
+    Ok(())
+}
+
+#[test]
+fn test_extended_complex() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = assert_cmd::Command::cargo_bin("binarygrep")?;
+    cmd.arg("--no-ascii")
+        .arg("--extended")
+        .arg("5abeb771{1,1}[23,37,b9]{2}4390aabc[0c,7a,2f,e4,10,f0,91]{7,9}cc.{5}7a62[77,f1]{2}")
+        .arg("tests/testdata_4194310");
+    let output = "00004597: 5abeb77123374390aabc0c7a2fe410f091ccbf919df24d7a6277f1\n";
     cmd.assert().success().stdout(output);
     Ok(())
 }

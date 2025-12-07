@@ -173,8 +173,8 @@ impl<T: Search> Bgrep<T> {
     }
 
     fn grep_buffer(&self, buf: &Buffer, offset: usize, filename: &str) {
-        let mut start_at = 0;
-        while let Some((i, match_len)) = self.search.search(buf, start_at) {
+        let matches = self.search.search(buf, 0);
+        for (i, match_len) in matches {
             let res_start = i as isize;
             let res_end = (i + match_len) as isize;
             let before_start = cmp::max((i - self.before) as isize, buf.min_index);
@@ -186,7 +186,6 @@ impl<T: Search> Bgrep<T> {
             ) {
                 self.print_result(&filename, offset + i, &before, &result, &after);
             }
-            start_at = i + 1;
         }
     }
 
