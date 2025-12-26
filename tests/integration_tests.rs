@@ -2,7 +2,7 @@ use assert_cmd;
 
 #[test]
 fn test_firstbytes() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = assert_cmd::Command::cargo_bin("binarygrep")?;
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("binarygrep");
     cmd.arg("--no-ascii")
         .arg("b8873f30")
         .arg("tests/testdata_783");
@@ -17,7 +17,7 @@ fn test_firstbytes() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn test_small_file() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = assert_cmd::Command::cargo_bin("binarygrep")?;
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("binarygrep");
     cmd.arg("--no-ascii").arg("c3df").arg("tests/testdata_783");
     let output = "00000256: c3df\n";
     cmd.assert().success().stdout(output);
@@ -30,7 +30,7 @@ fn test_small_file() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn test_stdin() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = assert_cmd::Command::cargo_bin("binarygrep")?;
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("binarygrep");
     cmd.arg("--no-ascii")
         .arg("c3df")
         .arg("tests/testdata_783")
@@ -46,7 +46,7 @@ fn test_stdin() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn test_file_below_buffersize() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = assert_cmd::Command::cargo_bin("binarygrep")?;
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("binarygrep");
     cmd.arg("--no-ascii")
         .arg("7fdd")
         .arg("tests/testdata_4194304");
@@ -61,7 +61,7 @@ fn test_file_below_buffersize() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn test_file_above_buffersize() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = assert_cmd::Command::cargo_bin("binarygrep")?;
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("binarygrep");
     cmd.arg("--no-ascii")
         .arg("f660")
         .arg("tests/testdata_4194310");
@@ -76,7 +76,7 @@ fn test_file_above_buffersize() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn test_file_below_buffersize_zero() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = assert_cmd::Command::cargo_bin("binarygrep")?;
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("binarygrep");
     cmd.arg("--no-ascii")
         .arg("0000")
         .arg("tests/testdata_4194304");
@@ -91,7 +91,7 @@ fn test_file_below_buffersize_zero() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn test_file_above_buffersize_zero() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = assert_cmd::Command::cargo_bin("binarygrep")?;
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("binarygrep");
     cmd.arg("--no-ascii")
         .arg("0000")
         .arg("tests/testdata_4194310");
@@ -106,7 +106,7 @@ fn test_file_above_buffersize_zero() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn test_large_file() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = assert_cmd::Command::cargo_bin("binarygrep")?;
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("binarygrep");
     cmd.arg("--no-ascii")
         .arg("c3df")
         .arg("tests/testdata_10485760");
@@ -121,7 +121,7 @@ fn test_large_file() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn test_buffer_boundary() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = assert_cmd::Command::cargo_bin("binarygrep")?;
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("binarygrep");
     cmd.arg("--no-ascii")
         .arg("9a1426792ae8bda3cbc4dc5171d62910c7ccb128e7d2f33b65bc919259284828")
         .arg("tests/testdata_10485760");
@@ -136,7 +136,7 @@ fn test_buffer_boundary() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn test_wildcard() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = assert_cmd::Command::cargo_bin("binarygrep")?;
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("binarygrep");
     cmd.arg("--no-ascii")
         .arg("--extended")
         .arg("0b.00.bb")
@@ -148,7 +148,7 @@ fn test_wildcard() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn test_characterset() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = assert_cmd::Command::cargo_bin("binarygrep")?;
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("binarygrep");
     cmd.arg("--no-ascii")
         .arg("--extended")
         .arg("6a42[be,f0,a9,ae]")
@@ -160,7 +160,7 @@ fn test_characterset() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn test_quantifier() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = assert_cmd::Command::cargo_bin("binarygrep")?;
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("binarygrep");
     cmd.arg("--no-ascii")
         .arg("--extended")
         .arg("05{3,6}")
@@ -172,7 +172,7 @@ fn test_quantifier() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn test_wildcard_with_quantifier() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = assert_cmd::Command::cargo_bin("binarygrep")?;
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("binarygrep");
     cmd.arg("--no-ascii")
         .arg("--extended")
         .arg("42.{3}f2ab")
@@ -184,7 +184,7 @@ fn test_wildcard_with_quantifier() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn test_extended_complex() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = assert_cmd::Command::cargo_bin("binarygrep")?;
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("binarygrep");
     cmd.arg("--no-ascii")
         .arg("--extended")
         .arg("5abeb771{1,1}[23,37,b9]{2}4390aabc[0c,7a,2f,e4,10,f0,91]{7,9}cc.{5}7a62[77,f1]{2}")
@@ -196,7 +196,7 @@ fn test_extended_complex() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn test_ascii() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = assert_cmd::Command::cargo_bin("binarygrep")?;
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("binarygrep");
     cmd.arg("3d9d991b").arg("tests/testdata_10485760");
     cmd.assert().success().stdout("009ff7b2: 3d9d991b  =...\n");
     Ok(())
@@ -204,7 +204,7 @@ fn test_ascii() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn test_after() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = assert_cmd::Command::cargo_bin("binarygrep")?;
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("binarygrep");
     cmd.arg("-A")
         .arg("6")
         .arg("3d9d991b")
@@ -217,7 +217,7 @@ fn test_after() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn test_before() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = assert_cmd::Command::cargo_bin("binarygrep")?;
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("binarygrep");
     cmd.arg("-B")
         .arg("5")
         .arg("3d9d991b")
@@ -230,7 +230,7 @@ fn test_before() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn test_context() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = assert_cmd::Command::cargo_bin("binarygrep")?;
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("binarygrep");
     cmd.arg("-C")
         .arg("5")
         .arg("3d9d991b")
@@ -243,7 +243,7 @@ fn test_context() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn test_with_filename() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = assert_cmd::Command::cargo_bin("binarygrep")?;
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("binarygrep");
     cmd.arg("-H").arg("038d2c46").arg("tests/testdata_4194310");
     cmd.assert()
         .success()
@@ -253,7 +253,7 @@ fn test_with_filename() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn test_no_offset() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = assert_cmd::Command::cargo_bin("binarygrep")?;
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("binarygrep");
     cmd.arg("--no-offset")
         .arg("038d2c46")
         .arg("tests/testdata_4194310");
@@ -263,7 +263,7 @@ fn test_no_offset() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn test_recursive() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = assert_cmd::Command::cargo_bin("binarygrep")?;
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("binarygrep");
     cmd.arg("--recursive").arg("deede4c1").arg("tests");
     cmd.assert().success().stdout("tests/subdir/testdata_1200 000002d1: deede4c1  ....\ntests/testdata_4194304 0000d250: deede4c1  ....\n");
     Ok(())
