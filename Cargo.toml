@@ -1,13 +1,16 @@
 [package]
 name = "binarygrep"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
+license = "GPL-3.0-only"
+description = "grep but for binary data"
+repository = "https://github.com/ddast/binarygrep"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = { version = "4.5.23", features = ["derive"] }
-colored = "2.2.0"
+clap = { version = "4.5.53", features = ["derive"] }
+colored = "3.0.0"
 
 [dev-dependencies]
-assert_cmd = "2.0.16"
+assert_cmd = "2.1.1"
