@@ -16,9 +16,6 @@ use search::Search;
 mod bmsearch;
 use bmsearch::BoyerMooreSearch;
 
-mod simplesearch;
-use simplesearch::SimpleSearch;
-
 mod extendedsearch;
 use extendedsearch::ExtendedSearch;
 
@@ -38,12 +35,9 @@ struct Cli {
     /// Search in all files recursively, symbolic links are followed
     #[arg(short = 'r', long)]
     recursive: bool,
-    /// Allow extended search patterns
+    /// Enable extended search patterns
     #[arg(short = 'x', long)]
     extended: bool,
-    /// Use simple search algorithm
-    #[arg(long)]
-    simple_search: bool,
     /// Print <N> bytes after the found pattern
     #[arg(short = 'A', long, default_value_t = 0, value_name = "N")]
     after: usize,
@@ -242,8 +236,6 @@ pub fn run() -> Result<(), BgrepError> {
     let cli = Cli::parse();
     if cli.extended {
         return run2::<ExtendedSearch>(&cli);
-    } else if cli.simple_search {
-        return run2::<SimpleSearch>(&cli);
     } else {
         return run2::<BoyerMooreSearch>(&cli);
     }
