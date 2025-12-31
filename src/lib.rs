@@ -25,7 +25,18 @@ pub use bgreperror::BgrepError;
 const BUFFER_SIZE: usize = 4 * 1024 * 1024;
 
 #[derive(Parser)]
-#[command(version)]
+#[command(
+    version,
+    after_help = r#"
+Extended patterns consist of:
+- Bytes in hexadecimal notation
+- The wildcard character matching an arbitrary single byte: .
+- Character sets: [02,ac,77] (either 0x02, 0xac or 0x77)
+- Quantifiers: 03{5} (five times 0x03), 03{2,5} (two till five times 0x03)
+- Spaces since they are always ignored
+Example: 00{10} .{1,3} [00,FF]{2,3} AA BB
+"#
+)]
 struct Cli {
     /// Pattern as hexadecimal string
     pattern: String,
@@ -35,7 +46,7 @@ struct Cli {
     /// Search in all files recursively, symbolic links are followed
     #[arg(short = 'r', long)]
     recursive: bool,
-    /// Enable extended search patterns
+    /// Enable extended search patterns (see below for syntax)
     #[arg(short = 'x', long)]
     extended: bool,
     /// Print <N> bytes after the found pattern
