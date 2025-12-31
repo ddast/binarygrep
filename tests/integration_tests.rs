@@ -123,7 +123,8 @@ fn test_wildcard() -> Result<(), Box<dyn std::error::Error>> {
         .arg("--extended")
         .arg("0b.00.bb")
         .arg("tests/testdata_10485760");
-    let output = "00449923: 0b5b0071bb\n004ec2fd: 0b660080bb\n005c5a8a: 0b05009dbb\n00634a75: 0b970037bb\n";
+    let output =
+        "00449923: 0b5b0071bb\n004ec2fd: 0b660080bb\n005c5a8a: 0b05009dbb\n00634a75: 0b970037bb\n";
     cmd.assert().success().stdout(output);
     Ok(())
 }

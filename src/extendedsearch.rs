@@ -185,7 +185,12 @@ impl Search for ExtendedSearch {
         // contain all possible allowed combinations.
         let mut cnt: Vec<usize> = self.pattern.iter().map(|p| p.min_cnt).collect();
         'cnt_loop: loop {
-            result.append(&mut search_single_pattern(data, offset, &self.pattern, &cnt));
+            result.append(&mut search_single_pattern(
+                data,
+                offset,
+                &self.pattern,
+                &cnt,
+            ));
             for i in 0..self.pattern.len() {
                 if cnt[i] < self.pattern[i].max_cnt {
                     cnt[i] += 1;

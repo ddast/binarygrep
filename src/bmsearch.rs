@@ -4,8 +4,8 @@
 
 use crate::bgreperror::BgrepError;
 use crate::buffer::Buffer;
-use crate::search::decode_hex;
 use crate::search::Search;
+use crate::search::decode_hex;
 
 const ALPHABET_LEN: usize = 256;
 
