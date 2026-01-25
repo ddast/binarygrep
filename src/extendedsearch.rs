@@ -37,7 +37,7 @@ fn parse_extended(pattern_input: &str) -> Result<Vec<PatternEntry>, BgrepError> 
             min_cnt: 1,
             max_cnt: 1,
         };
-        if pattern_char[i].is_digit(16) {
+        if pattern_char[i].is_ascii_hexdigit() {
             let consumed = parse_hex_byte(&pattern_str[i..], &mut patternentry)?;
             i += consumed;
         } else if pattern_char[i] == '.' {
@@ -88,11 +88,11 @@ fn parse_quantifier(pattern: &str, entry: &mut PatternEntry) -> Result<usize, Bg
             )));
         }
 
-        return Ok(end + 1);
+        Ok(end + 1)
     } else {
-        return Err(BgrepError(String::from(
+        Err(BgrepError(String::from(
             "Incomplete quantifier.  Missing }",
-        )));
+        )))
     }
 }
 
@@ -105,11 +105,11 @@ fn parse_character_set(pattern: &str, entry: &mut PatternEntry) -> Result<usize,
                     val
                 )));
             }
-            _ = parse_hex_byte(&val, entry)?;
+            _ = parse_hex_byte(val, entry)?;
         }
-        return Ok(end + 1);
+        Ok(end + 1)
     } else {
-        return Err(BgrepError(String::from("Incomplete set.  Missing ]")));
+        Err(BgrepError(String::from("Incomplete set.  Missing ]")))
     }
 }
 
@@ -132,8 +132,8 @@ fn parse_hex_byte(pattern: &str, entry: &mut PatternEntry) -> Result<usize, Bgre
 fn search_single_pattern(
     data: &Buffer,
     offset: usize,
-    pattern: &Vec<PatternEntry>,
-    cnt: &Vec<usize>,
+    pattern: &[PatternEntry],
+    cnt: &[usize],
 ) -> Vec<(usize, usize)> {
     let mut result = vec![];
     for i in offset..data.active_size {
@@ -143,11 +143,11 @@ fn search_single_pattern(
             for _ in 0..cnt[j] {
                 if let Some(c_buf) = data.at((i + processed) as isize) {
                     processed += 1;
-                    if let PatternChar::Value(charset) = &patternentry.patternchar {
-                        if !charset.contains(&c_buf) {
-                            matched = false;
-                            break 'pattern_loop;
-                        }
+                    if let PatternChar::Value(charset) = &patternentry.patternchar
+                        && !charset.contains(&c_buf)
+                    {
+                        matched = false;
+                        break 'pattern_loop;
                     }
                     // else patternentry.patternchar must be PatternChar::Wildcard, and therefore,
                     // we do nothing and continue since this is equal to having a match
@@ -160,7 +160,7 @@ fn search_single_pattern(
             result.push((i, cnt.iter().sum()));
         }
     }
-    return result;
+    result
 }
 
 impl Search for ExtendedSearch {
@@ -172,7 +172,7 @@ impl Search for ExtendedSearch {
 
     fn search(&self, data: &Buffer, offset: usize) -> Vec<(usize, usize)> {
         let mut result = vec![];
-        if self.pattern.len() == 0 {
+        if self.pattern.is_empty() {
             return result;
         }
 
@@ -203,7 +203,7 @@ impl Search for ExtendedSearch {
                 }
             }
         }
-        return result;
+        result
     }
 
     fn max_pattern_len(&self) -> usize {

@@ -149,12 +149,10 @@ impl Buffer {
 
     /// Transforms an index relative to the current buffer to the real index of the buffer
     fn get_absolute_index(&self, i: isize) -> usize {
-        let absolute_index;
         if i >= 0 {
-            absolute_index = (self.root_index + self.size + (i as usize)) % (3 * self.size);
+            (self.root_index + self.size + (i as usize)) % (3 * self.size)
         } else {
-            absolute_index = (self.root_index + self.size - (-i as usize)) % (3 * self.size);
+            (self.root_index + self.size - (-i as usize)) % (3 * self.size)
         }
-        absolute_index
     }
 }

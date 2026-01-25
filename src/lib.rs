@@ -2,7 +2,6 @@ use std::cmp;
 use std::fs;
 use std::io;
 use std::path::Path;
-use std::u8;
 
 use clap::Parser;
 use colored::Colorize;
@@ -88,7 +87,7 @@ fn encode_hex((buf_a, buf_b): (&[u8], &[u8])) -> String {
 fn ascii_interpretation((buf_a, buf_b): (&[u8], &[u8])) -> String {
     let mut ascii = String::with_capacity(buf_a.len() + buf_b.len());
     for &x in buf_a.iter().chain(buf_b.iter()) {
-        if x >= 0x20 && x <= 0x7e {
+        if (0x20..=0x7e).contains(&x) {
             ascii.push(x as char);
         } else {
             ascii.push('.');
@@ -125,10 +124,10 @@ impl<T: Search> Bgrep<T> {
     fn grep(&self, file: &str) -> Result<(), BgrepError> {
         if file == "-" {
             let mut f = io::stdin();
-            self.grep_fd(&file, &mut f)?;
+            self.grep_fd(file, &mut f)?;
         } else {
             let path = Path::new(&file);
-            self.grep_path(&path)?;
+            self.grep_path(path)?;
         }
         Ok(())
     }
@@ -173,7 +172,7 @@ impl<T: Search> Bgrep<T> {
             buffer
                 .read(f)
                 .map_err(|err| BgrepError(format!("Error while reading: {}", err)))?;
-            self.grep_buffer(&buffer, grep_ctr, &filename);
+            self.grep_buffer(&buffer, grep_ctr, filename);
             grep_ctr += buffer.active_size;
             if buffer.is_eof() {
                 break;
@@ -194,7 +193,7 @@ impl<T: Search> Bgrep<T> {
                 buf.view(res_start, res_end),
                 buf.view(res_end, after_end),
             ) {
-                self.print_result(&filename, offset + i, before, result, after);
+                self.print_result(filename, offset + i, before, result, after);
             }
         }
     }
@@ -207,7 +206,7 @@ impl<T: Search> Bgrep<T> {
         result: (&[u8], &[u8]),
         after: (&[u8], &[u8]),
     ) {
-        let filename = if self.with_filename { &file } else { "" };
+        let filename = if self.with_filename { file } else { "" };
         let offset = if self.no_offset {
             String::new()
         } else {
@@ -251,16 +250,16 @@ impl<T: Search> Bgrep<T> {
 pub fn run() -> Result<(), BgrepError> {
     let cli = Cli::parse();
     if cli.extended {
-        return run2::<ExtendedSearch>(&cli);
+        run2::<ExtendedSearch>(&cli)
     } else {
-        return run2::<BoyerMooreSearch>(&cli);
+        run2::<BoyerMooreSearch>(&cli)
     }
 }
 
 fn run2<T: Search>(cli: &Cli) -> Result<(), BgrepError> {
-    let bgrep: Bgrep<T> = Bgrep::new(&cli)?;
+    let bgrep: Bgrep<T> = Bgrep::new(cli)?;
     for file in &cli.file {
-        bgrep.grep(&file)?;
+        bgrep.grep(file)?;
     }
     Ok(())
 }

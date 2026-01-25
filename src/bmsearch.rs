@@ -34,7 +34,7 @@ impl BoyerMooreSearch {
                 break;
             }
             while j >= 0 {
-                if data.at(i as isize).unwrap() == self.pat[j as usize] {
+                if data.at(i).unwrap() == self.pat[j as usize] {
                     i -= 1;
                     j -= 1;
                 } else {
@@ -45,13 +45,13 @@ impl BoyerMooreSearch {
                 return Some(((i + 1) as usize, patlen));
             }
             let shift = std::cmp::max(
-                self.delta1[data.at(i as isize).unwrap() as usize],
+                self.delta1[data.at(i).unwrap() as usize],
                 self.delta2[j as usize],
             );
             i += shift;
         }
 
-        return None;
+        None
     }
 }
 
@@ -87,32 +87,32 @@ impl Search for BoyerMooreSearch {
     }
 }
 
-fn make_delta1(delta1: &mut Vec<isize>, pat: &Vec<u8>) {
+fn make_delta1(delta1: &mut [isize], pat: &[u8]) {
     for i in 0..pat.len() {
         delta1[pat[i] as usize] = pat.len() as isize - 1 - i as isize;
     }
 }
 
-fn is_prefix(word: &Vec<u8>, pos: isize) -> bool {
+fn is_prefix(word: &[u8], pos: isize) -> bool {
     let suffixlen = word.len() - pos as usize;
     for i in 0..suffixlen {
         if word[i] != word[pos as usize + i] {
             return false;
         }
     }
-    return true;
+    true
 }
 
-fn suffix_length(word: &Vec<u8>, pos: isize) -> usize {
+fn suffix_length(word: &[u8], pos: isize) -> usize {
     for i in 0..pos + 1 {
         if word[(pos - i) as usize] != word[word.len() - 1 - i as usize] {
             return i as usize;
         }
     }
-    return pos as usize;
+    pos as usize
 }
 
-fn make_delta2(delta2: &mut Vec<isize>, pat: &Vec<u8>) {
+fn make_delta2(delta2: &mut [isize], pat: &[u8]) {
     let mut last_prefix_index = 1;
 
     for p in (0..pat.len() as isize).rev() {

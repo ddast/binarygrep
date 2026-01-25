@@ -17,7 +17,7 @@ pub fn decode_hex(pattern_input: &str) -> Result<Vec<u8>, BgrepError> {
         )));
     }
     let pattern = pattern_input.replace(" ", "");
-    if pattern.len() % 2 != 0 {
+    if !pattern.len().is_multiple_of(2) {
         return Err(BgrepError(format!(
             "Hex pattern does not have even amount of characters: {}",
             pattern_input
@@ -25,11 +25,9 @@ pub fn decode_hex(pattern_input: &str) -> Result<Vec<u8>, BgrepError> {
     }
     (0..(pattern.len() / 2))
         .map(|i| {
-            Ok(
-                u8::from_str_radix(&pattern[(2 * i)..(2 * i + 2)], 16).map_err(|err| {
-                    BgrepError(format!("Invalid hex pattern '{}': {}", pattern_input, err))
-                })?,
-            )
+            u8::from_str_radix(&pattern[(2 * i)..(2 * i + 2)], 16).map_err(|err| {
+                BgrepError(format!("Invalid hex pattern '{}': {}", pattern_input, err))
+            })
         })
         .collect()
 }
