@@ -70,19 +70,23 @@ impl Buffer {
         Some(self.buffer[actual_index])
     }
 
-    /// Return a view of the buffer from index `first` to `last`
-    pub fn view(&self, first: isize, last: isize) -> Option<Vec<u8>> {
-        if first > last
-            || first < self.min_index
-            || first > self.max_index
-            || last < self.min_index
-            || last > self.max_index
-        {
+    /// Return the view `[first, last)` of the buffer
+    /// To avoid a copy operation two buffers are returned which should be treated as consecutive
+    /// data by the caller.
+    pub fn view(&self, first: isize, last: isize) -> Option<(&[u8], &[u8])> {
+        if first > last || first < self.min_index || last > self.max_index {
             return None;
         }
         let actual_index_first = self.get_absolute_index(first);
         let actual_index_last = self.get_absolute_index(last);
-        Some(self.buffer[actual_index_first..actual_index_last].to_vec())
+        if actual_index_first <= actual_index_last {
+            Some((&self.buffer[actual_index_first..actual_index_last], &[]))
+        } else {
+            Some((
+                &self.buffer[actual_index_first..],
+                &self.buffer[..actual_index_last],
+            ))
+        }
     }
 
     /// Returns a writeable buffer

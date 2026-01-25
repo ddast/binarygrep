@@ -117,6 +117,19 @@ fn test_buffer_boundary() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+fn test_buffer_boundary_2() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("binarygrep");
+    cmd.arg("--no-ascii")
+        .arg("8bb44466")
+        .arg("tests/testdata_10485760");
+    let output = "007ffffe: 8bb44466\n";
+    cmd.assert().success().stdout(output);
+    cmd.arg("--extended");
+    cmd.assert().success().stdout(output);
+    Ok(())
+}
+
+#[test]
 fn test_wildcard() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("binarygrep");
     cmd.arg("--no-ascii")
