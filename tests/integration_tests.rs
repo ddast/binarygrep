@@ -261,6 +261,10 @@ fn test_no_offset() -> Result<(), Box<dyn std::error::Error>> {
 fn test_recursive() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("binarygrep");
     cmd.arg("--recursive").arg("deede4c1").arg("tests");
-    cmd.assert().success().stdout("tests/subdir/testdata_1200 000002d1: deede4c1  ....\ntests/testdata_4194304 0000d250: deede4c1  ....\n");
+    let output = cmd.assert().success().get_output().stdout.clone();
+    // order of output is not deterministic for multiple input files
+    let expected1: &[u8] = b"tests/subdir/testdata_1200 000002d1: deede4c1  ....\ntests/testdata_4194304 0000d250: deede4c1  ....\n";
+    let expected2: &[u8] = b"tests/testdata_4194304 0000d250: deede4c1  ....\ntests/subdir/testdata_1200 000002d1: deede4c1  ....\n";
+    assert!(output == expected1 || output == expected2);
     Ok(())
 }
