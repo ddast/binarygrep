@@ -285,7 +285,10 @@ fn test_recursive() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn test_redundant_quantifiers() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("binarygrep");
-    cmd.arg("--no-ascii").arg("--extended").arg("01ac.{1,2}.{1,2}e314").arg("tests/testdata_783");
+    cmd.arg("--no-ascii")
+        .arg("--extended")
+        .arg("01ac.{1,2}.{1,2}e314")
+        .arg("tests/testdata_783");
     cmd.assert().success().stdout("00000071: 01ac30a3ffe314\n");
     Ok(())
 }
@@ -293,7 +296,10 @@ fn test_redundant_quantifiers() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn test_int_overflow() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("binarygrep");
-    cmd.arg("--no-ascii").arg("-B1").arg("b887").arg("tests/testdata_783");
+    cmd.arg("--no-ascii")
+        .arg("-B1")
+        .arg("b887")
+        .arg("tests/testdata_783");
     cmd.assert().success().stdout("00000000: b887\n");
     Ok(())
 }
