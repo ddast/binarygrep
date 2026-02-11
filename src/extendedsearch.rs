@@ -163,10 +163,29 @@ fn search_single_pattern(
     result
 }
 
+/// Merge consecutive pattern entries with the same patternchar into a single
+/// entry whose min/max counts are the sums of the originals.  This avoids
+/// enumerating redundant quantifier combinations that expand to the same
+/// effective byte pattern (e.g. `.{1,2}.{1,2}` becomes `.{2,4}`).
+fn merge_consecutive(pattern: Vec<PatternEntry>) -> Vec<PatternEntry> {
+    let mut merged: Vec<PatternEntry> = Vec::new();
+    for entry in pattern {
+        if let Some(last) = merged.last_mut() {
+            if last.patternchar == entry.patternchar {
+                last.min_cnt += entry.min_cnt;
+                last.max_cnt += entry.max_cnt;
+                continue;
+            }
+        }
+        merged.push(entry);
+    }
+    merged
+}
+
 impl Search for ExtendedSearch {
     fn new(pattern: &str) -> Result<ExtendedSearch, BgrepError> {
         Ok(ExtendedSearch {
-            pattern: parse_extended(pattern)?,
+            pattern: merge_consecutive(parse_extended(pattern)?),
         })
     }
 
