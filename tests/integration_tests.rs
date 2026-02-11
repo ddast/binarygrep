@@ -289,3 +289,11 @@ fn test_redundant_quantifiers() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert().success().stdout("00000071: 01ac30a3ffe314\n");
     Ok(())
 }
+
+#[test]
+fn test_int_overflow() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("binarygrep");
+    cmd.arg("--no-ascii").arg("-B1").arg("b887").arg("tests/testdata_783");
+    cmd.assert().success().stdout("00000000: b887\n");
+    Ok(())
+}

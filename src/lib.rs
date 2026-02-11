@@ -186,7 +186,7 @@ impl<T: Search> Bgrep<T> {
         for (i, match_len) in matches {
             let res_start = i as isize;
             let res_end = (i + match_len) as isize;
-            let before_start = cmp::max((i - self.before) as isize, buf.min_index);
+            let before_start = cmp::max(i as isize - self.before as isize, buf.min_index);
             let after_end = cmp::min((i + match_len + self.after) as isize, buf.max_index);
             if let (Some(before), Some(result), Some(after)) = (
                 buf.view(before_start, res_start),
