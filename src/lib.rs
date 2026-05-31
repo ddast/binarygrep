@@ -72,6 +72,9 @@ struct Cli {
     /// Suppress 0-based offset of matched bytes in output
     #[arg(long, default_value_t = false)]
     no_offset: bool,
+    /// Suppress hex output of matching bytes
+    #[arg(long, default_value_t = false)]
+    no_hex: bool,
 }
 
 fn encode_hex((buf_a, buf_b): (&[u8], &[u8])) -> String {
@@ -104,9 +107,10 @@ struct Bgrep<T: Search> {
     after: usize,
     before: usize,
     with_filename: bool,
+    files_with_matches: bool,
     no_ascii: bool,
     no_offset: bool,
-    files_with_matches: bool,
+    no_hex: bool,
     search: T,
 }
 
@@ -118,9 +122,11 @@ impl<T: Search> Bgrep<T> {
             after: cmp::max(cli.after, cli.context),
             before: cmp::max(cli.before, cli.context),
             with_filename: (multiple_files && !cli.no_filename)
-                || (!multiple_files && cli.with_filename),
-            no_ascii: cli.no_ascii,
-            no_offset: cli.no_offset,
+                || (!multiple_files && cli.with_filename)
+                || cli.files_with_matches,
+            no_ascii: cli.no_ascii || cli.files_with_matches,
+            no_offset: cli.no_offset || cli.files_with_matches,
+            no_hex: cli.no_hex || cli.files_with_matches,
             files_with_matches: cli.files_with_matches,
             search: T::new(&cli.pattern)?,
         })
@@ -215,19 +221,27 @@ impl<T: Search> Bgrep<T> {
         result: (&[u8], &[u8]),
         after: (&[u8], &[u8]),
     ) {
-        if self.files_with_matches {
-            println!("{}", file.cyan());
-            return;
-        }
         let filename = if self.with_filename { file } else { "" };
         let offset = if self.no_offset {
             String::new()
         } else {
             format!("{:08x}", address)
         };
-        let hex_before = &encode_hex(before);
-        let hex_result = &encode_hex(result);
-        let hex_after = &encode_hex(after);
+        let hex_before = if self.no_hex {
+            String::new()
+        } else {
+            encode_hex(before)
+        };
+        let hex_result = if self.no_hex {
+            String::new()
+        } else {
+            encode_hex(result)
+        };
+        let hex_after = if self.no_hex {
+            String::new()
+        } else {
+            encode_hex(after)
+        };
         let ascii_before = if self.no_ascii {
             String::new()
         } else {
@@ -244,19 +258,32 @@ impl<T: Search> Bgrep<T> {
             ascii_interpretation(after)
         };
         println!(
-            "{}{}{}{}{}{}{}{}{}{}{}",
-            filename.cyan(),
-            if filename.is_empty() { "" } else { " " },
-            offset.bold(),
-            if offset.is_empty() { "" } else { ": " },
-            hex_before,
-            hex_result.magenta(),
-            hex_after,
-            if self.no_ascii { "" } else { "  " },
-            ascii_before,
-            ascii_result.magenta(),
-            ascii_after
-        );
+            "{filename}{filename_sep}{offset}{offset_sep}{hex_before}{hex_result}{hex_after}{hex_sep}{ascii_before}{ascii_result}{ascii_after}",
+            filename = filename.cyan(),
+            filename_sep =
+                if !self.with_filename || (self.no_offset && self.no_hex && self.no_ascii) {
+                    ""
+                } else {
+                    " "
+                },
+            offset = offset.bold(),
+            offset_sep = if self.no_offset || (self.no_hex && self.no_ascii) {
+                ""
+            } else {
+                ": "
+            },
+            hex_before = hex_before,
+            hex_result = hex_result.magenta(),
+            hex_after = hex_after,
+            hex_sep = if self.no_hex || self.no_ascii {
+                ""
+            } else {
+                "  "
+            },
+            ascii_before = ascii_before,
+            ascii_result = ascii_result.magenta(),
+            ascii_after = ascii_after
+        )
     }
 }
 

@@ -313,3 +313,13 @@ fn test_files_with_matches() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert().success().stdout("tests/testdata_10485760\n");
     Ok(())
 }
+
+#[test]
+fn test_no_hex() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("binarygrep");
+    cmd.arg("--no-hex")
+        .arg("038d2c46")
+        .arg("tests/testdata_4194310");
+    cmd.assert().success().stdout("003f9a3e: ..,F\n");
+    Ok(())
+}
