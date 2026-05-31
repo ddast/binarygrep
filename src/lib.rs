@@ -221,6 +221,7 @@ impl<T: Search> Bgrep<T> {
         result: (&[u8], &[u8]),
         after: (&[u8], &[u8]),
     ) {
+        use std::io::Write;
         let filename = if self.with_filename { file } else { "" };
         let offset = if self.no_offset {
             String::new()
@@ -257,33 +258,22 @@ impl<T: Search> Bgrep<T> {
         } else {
             ascii_interpretation(after)
         };
-        println!(
+        if writeln!(&mut io::stdout(),
             "{filename}{filename_sep}{offset}{offset_sep}{hex_before}{hex_result}{hex_after}{hex_sep}{ascii_before}{ascii_result}{ascii_after}",
             filename = filename.cyan(),
-            filename_sep =
-                if !self.with_filename || (self.no_offset && self.no_hex && self.no_ascii) {
-                    ""
-                } else {
-                    " "
-                },
+            filename_sep = if !self.with_filename || (self.no_offset && self.no_hex && self.no_ascii) { "" } else { " "},
             offset = offset.bold(),
-            offset_sep = if self.no_offset || (self.no_hex && self.no_ascii) {
-                ""
-            } else {
-                ": "
-            },
+            offset_sep = if self.no_offset || (self.no_hex && self.no_ascii) { "" } else { ": " },
             hex_before = hex_before,
             hex_result = hex_result.magenta(),
             hex_after = hex_after,
-            hex_sep = if self.no_hex || self.no_ascii {
-                ""
-            } else {
-                "  "
-            },
+            hex_sep = if self.no_hex || self.no_ascii { "" } else { "  " },
             ascii_before = ascii_before,
             ascii_result = ascii_result.magenta(),
             ascii_after = ascii_after
-        )
+        ).is_err() {
+            std::process::exit(141);
+            }
     }
 }
 
