@@ -61,6 +61,11 @@ impl Buffer {
         self.is_eof
     }
 
+    /// Set the buffer manually to EOF state
+    pub fn set_eof(&mut self) {
+        self.is_eof = true;
+    }
+
     /// Returns the value at offset `i` if this is a valid index
     pub fn at(&self, i: isize) -> Option<u8> {
         if i < self.min_index || i >= self.max_index {

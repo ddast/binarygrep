@@ -303,3 +303,13 @@ fn test_int_overflow() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert().success().stdout("00000000: b887\n");
     Ok(())
 }
+
+#[test]
+fn test_files_with_matches() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("binarygrep");
+    cmd.arg("--files-with-matches")
+        .arg("11")
+        .arg("tests/testdata_10485760");
+    cmd.assert().success().stdout("tests/testdata_10485760\n");
+    Ok(())
+}

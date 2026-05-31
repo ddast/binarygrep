@@ -60,6 +60,9 @@ struct Cli {
     /// Print filename along matches (default for multiple files)
     #[arg(short = 'H', long)]
     with_filename: bool,
+    /// Print only the file name and suppress all other output
+    #[arg(short = 'l', long)]
+    files_with_matches: bool,
     /// Do not print filename along matches (default for single file)
     #[arg(long)]
     no_filename: bool,
@@ -103,6 +106,7 @@ struct Bgrep<T: Search> {
     with_filename: bool,
     no_ascii: bool,
     no_offset: bool,
+    files_with_matches: bool,
     search: T,
 }
 
@@ -117,6 +121,7 @@ impl<T: Search> Bgrep<T> {
                 || (!multiple_files && cli.with_filename),
             no_ascii: cli.no_ascii,
             no_offset: cli.no_offset,
+            files_with_matches: cli.files_with_matches,
             search: T::new(&cli.pattern)?,
         })
     }
@@ -172,7 +177,7 @@ impl<T: Search> Bgrep<T> {
             buffer
                 .read(f)
                 .map_err(|err| BgrepError(format!("Error while reading: {}", err)))?;
-            self.grep_buffer(&buffer, grep_ctr, filename);
+            self.grep_buffer(&mut buffer, grep_ctr, filename);
             grep_ctr += buffer.active_size;
             if buffer.is_eof() {
                 break;
@@ -181,7 +186,7 @@ impl<T: Search> Bgrep<T> {
         Ok(())
     }
 
-    fn grep_buffer(&self, buf: &Buffer, offset: usize, filename: &str) {
+    fn grep_buffer(&self, buf: &mut Buffer, offset: usize, filename: &str) {
         let matches = self.search.search(buf, 0);
         for (i, match_len) in matches {
             let res_start = i as isize;
@@ -195,6 +200,10 @@ impl<T: Search> Bgrep<T> {
             ) {
                 self.print_result(filename, offset + i, before, result, after);
             }
+            if self.files_with_matches {
+                buf.set_eof();
+                break;
+            }
         }
     }
 
@@ -206,6 +215,10 @@ impl<T: Search> Bgrep<T> {
         result: (&[u8], &[u8]),
         after: (&[u8], &[u8]),
     ) {
+        if self.files_with_matches {
+            println!("{}", file.cyan());
+            return;
+        }
         let filename = if self.with_filename { file } else { "" };
         let offset = if self.no_offset {
             String::new()
